@@ -251,3 +251,82 @@ std::string cmdMount(std::map<std::string, std::string> params) {
 
     return out.str();
 }
+
+//UNMOUNT --------------------------------------------------------------------------
+
+std::string cmdUnmount(std::map<std::string, std::string> params) {
+    if (params.find("id") == params.end()) {
+        return "Error: Falta parámetro obligatorio -id\n";
+    }
+
+    std::string id = mayusculas(params["id"]);
+    int foundIdx = -1;
+
+    //1. Buscar en RAM
+    for (size_t i = 0; i < mountedPartitions.size(); i++) {
+        if (mayusculas(mountedPartitions[i].Id) == id) {
+            foundIdx = i;
+            break;
+        }
+    }
+
+    if (foundIdx == -1) {
+        return "Error: No se encontró la partición con id '" + id + "'\n";
+    }
+
+    MountedPartition mp = mountedPartitions[foundIdx];
+
+    //2. Actualizar en DISCO
+    std::fstream disk(mp.Path, std::ios::binary | std::ios::in | std::ios::out);
+    if (!disk.is_open()) {
+        return "Error: No se pudo abrir el disco '" + mp.Path + "' para desmontar\n";
+    }
+
+    if (mp.Type == 'L') {
+        //Buscar EBR y poner Mount = 0
+        int currPos = -1;
+        //Necesitamos el MBR para saber donde empieza la cadena
+        MBR mbr;
+        if (readMBR(disk, mbr)) {
+            for (int i = 0; i < 4; i++) {
+                if (mbr.Partitions[i].Type == 'E') {
+                    currPos = mbr.Partitions[i].Start;
+                    int extEnd = mbr.Partitions[i].Start + mbr.Partitions[i].Size;
+                    while (currPos != -1 && currPos < extEnd) {
+                        EBR ebr;
+                        if (!readEBR(disk, currPos, ebr)) break;
+                        if (!isEBREmpty(ebr) && getEBRName(ebr) == mp.Name) {
+                            ebr.Mount = 0;
+                            writeEBR(disk, currPos, ebr);
+                            break;
+                        }
+                        if (!hasNextEBR(ebr)) break;
+                        currPos = ebr.Next;
+                    }
+                    break;
+                }
+            }
+        }
+    } else {
+        //Buscar en MBR y poner Status = '0'
+        MBR mbr;
+        if (readMBR(disk, mbr)) {
+            for (int i = 0; i < 4; i++) {
+                if (trimNull(mbr.Partitions[i].Name) == mp.Name) {
+                    mbr.Partitions[i].Status = '0';
+                    mbr.Partitions[i].Correlative = 0;
+                    std::memset(mbr.Partitions[i].Id, 0, sizeof(mbr.Partitions[i].Id));
+                    writeMBR(disk, mbr);
+                    break;
+                }
+            }
+        }
+    }
+
+    disk.close();
+
+    //3. Remover de RAM
+    mountedPartitions.erase(mountedPartitions.begin() + foundIdx);
+
+    return "Partición con id '" + id + "' desmontada exitosamente\n";
+}

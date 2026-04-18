@@ -88,7 +88,6 @@ std::string processLine(const std::string& rawLine) {
     std::transform(command.begin(), command.end(), 
                    command.begin(), ::tolower);
 
-    
     auto params = parseParams(line);
 
     if (params.count("__error__"))
@@ -98,6 +97,7 @@ std::string processLine(const std::string& rawLine) {
     else if (command == "rmdisk")  return cmdRmdisk(params);
     else if (command == "fdisk")   return cmdFdisk(params);
     else if (command == "mount")   return cmdMount(params);
+    else if (command == "unmount") return cmdUnmount(params);
     else if (command == "mounted") return cmdMounted();
     else if (command == "mkfs")    return cmdMkfs(params);
     else if (command == "login")   return cmdLogin(params);
@@ -114,7 +114,7 @@ std::string processLine(const std::string& rawLine) {
     else return "Error: Comando '" + command + "' no reconocido, intente de nuevo o ingrese un comando válido";
 }
 
-// Procesa un script completo (múltiples líneas)
+//Procesa un script completo (múltiples líneas)
 std::string processScript(const std::string& script) {
     std::string output;
     std::istringstream iss(script);
