@@ -20,6 +20,14 @@ static std::string toUpper(std::string s) {
     return s;
 }
 
+static std::string trim(std::string s) {
+    if (s.empty()) return s;
+    s.erase(0, s.find_first_not_of(" \t\n\r"));
+    if (s.empty()) return s;
+    s.erase(s.find_last_not_of(" \t\n\r") + 1);
+    return s;
+}
+
 static std::string trimNull(const char *p) {
     std::string s(p);
     size_t pos = s.find('\0');
@@ -486,7 +494,7 @@ static void deletePartition(std::fstream &disk, MBR &mbr,
         mbr.Partitions[idx] = {};
         writeMBR(disk, mbr);
         out << "Partición '" << name << "' (tipo: " << pt
-            << ") eliminada exitosamente (FULL)\n";
+            << ") eliminada físicamente y removida de la tabla (FULL)\n";
     } else {
         out << "Error: Tipo de eliminación '" << delType << "' no válido\n";
     }
@@ -501,15 +509,16 @@ static void expandPartition(std::fstream &disk, MBR &mbr,
     int nextStart = diskSize;
     
     for (int i = 0; i < 4; i++) {
-        Partition &q = mbr.Partitions[i];
-        if (q.Size > 0 && q.Start > end && q.Start < nextStart)
+        const Partition &q = mbr.Partitions[i];
+        if (i != index && q.Size > 0 && q.Start >= end && q.Start < nextStart)
             nextStart = q.Start;
     }
     
     int avail = nextStart - end;
-    if (avail < addSize) {
-        out << "no hay suficiente espacio disponible. Requerido: " << addSize
-            << " bytes, Disponible: " << avail << " bytes\n";
+    if (avail <= 0 || avail < addSize) {
+        if (avail < 0) avail = 0;
+        out << "Error: no hay espacio libre contiguo para expandir la partición. "
+            << "Requerido: " << addSize << " bytes, Disponible: " << avail << " bytes\n";
         return;
     }
     
@@ -559,14 +568,13 @@ static bool expandLogicalPartition(std::fstream &disk, EBR &ebr, int ebrPos,
     int avail = extEnd - partEnd;
     
     if (hasNextEBR(ebr)) {
-        EBR next;
-        if (readEBR(disk, ebr.Next, next))
-            avail = next.Start - partEnd;
+        avail = ebr.Next - partEnd;
     }
     
-    if (avail < addSize) {
-        out << "no hay suficiente espacio disponible. Requerido: " << addSize
-            << " bytes, Disponible: " << avail << " bytes\n";
+    if (avail <= 0 || avail < addSize) {
+        if (avail < 0) avail = 0;
+        out << "Error: no hay espacio libre contiguo para expandir la partición lógica. "
+            << "Requerido: " << addSize << " bytes, Disponible: " << avail << " bytes\n";
         return false;
     }
     
@@ -705,24 +713,22 @@ std::string cmdFdisk(std::map<std::string,std::string> params) {
 
     long sizeInBytes = 0;
     if (sizeStr != "") {
-        if (unit == "B") sizeInBytes = size;
-        else if (unit == "K" || unit == "") sizeInBytes = size * 1024L;
-        else if (unit == "M") sizeInBytes = size * 1024L * 1024L;
-        else return "Error: Unidad '" + unit + "' no válida. Use B, K o M\n";
+        std::string u = trim(unit);
+        if (u == "B") sizeInBytes = size;
+        else if (u == "K" || u == "") sizeInBytes = size * 1024L;
+        else if (u == "M") sizeInBytes = size * 1024L * 1024L;
+        else return "Error: Unidad '" + u + "' no válida. Use B, K o M\n";
     }
 
     // Validar tipo de partición
     if (partType == "") partType = "P";
     if (partType != "P" && partType != "E" && partType != "L")
-        return "Error: Tipo de partición '" + partType +
                "' no válido. Use P, E o L\n";
 
-    // Validar fit
     if (fit == "BF")       fit = "BF";
     else if (fit == "FF")  fit = "FF";
     else if (fit == "WF" || fit == "") fit = "WF";
-    else return "Error: Ajuste '" + fit +
-                "' no válido. Use BF, FF o WF\n";
+    else return "Error: Ajuste '" + fit + "' no válido. Use BF, FF o WF\n";
 
     char fitByte = 'W';
     if (fit == "BF") fitByte = 'B';
@@ -731,14 +737,23 @@ std::string cmdFdisk(std::map<std::string,std::string> params) {
 
     // Validar delete
     if (isDelete && delType != "FAST" && delType != "FULL")
-        return "Error: Tipo de eliminación '" + delType +
-               "' no válido. Use FAST o FULL\n";
+        return "Error: Tipo de eliminación '" + delType + "' no válido. Use FAST o FULL\n";
 
     // Validar add
-    int add = 0;
+    long addInBytes = 0;
     if (isAdd) {
-        try { add = std::stoi(addStr); }
+        int addVal = 0;
+        std::string addClean = trim(addStr);
+
+        try { addVal = std::stoi(addClean); }
         catch (...) { return "Error: El valor de 'add' debe ser un número entero\n"; }
+        
+        std::string unitClean = trim(unit);
+
+        if (unitClean == "B") addInBytes = addVal;
+        else if (unitClean == "K" || unitClean == "") addInBytes = addVal * 1024L;
+        else if (unitClean == "M") addInBytes = addVal * 1024L * 1024L;
+        else return "Error: Unidad '" + unitClean + "' no válida. Use B, K o M\n";
     }
 
     // Asegurar extensión .mia usando utilidad robusta
@@ -764,7 +779,7 @@ std::string cmdFdisk(std::map<std::string,std::string> params) {
     if (isDelete)
         deletePartition(disk, mbr, name, delType, out);
     else if (isAdd)
-        modifyPartition(disk, mbr, name, add, out);
+        modifyPartition(disk, mbr, name, (int)addInBytes, out);
     else {
         // Crear partición
         std::string err;
