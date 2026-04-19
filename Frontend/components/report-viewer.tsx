@@ -73,7 +73,7 @@ export function ReportViewer({ reports, onRemoveReport }: ReportViewerProps) {
                   <div className="aspect-video bg-muted flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={report.imageUrl}
+                      src={`${report.imageUrl}?t=${new Date(report.generatedAt).getTime()}`}
                       alt={report.name}
                       className="w-full h-full object-contain"
                       onError={(e) => {
@@ -101,7 +101,7 @@ export function ReportViewer({ reports, onRemoveReport }: ReportViewerProps) {
                         <ScrollArea className="max-h-[70vh]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={report.imageUrl}
+                            src={`${report.imageUrl}?t=${new Date(report.generatedAt).getTime()}`}
                             alt={report.name}
                             className="w-full h-auto"
                           />
