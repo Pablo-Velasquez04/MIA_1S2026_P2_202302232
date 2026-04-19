@@ -22,9 +22,17 @@ add_executable(backend
     Backend/FilesFolders/Mkdir.cpp
     Backend/FilesFolders/Cat.cpp
     Backend/FilesFolders/Helpers.cpp
+    Backend/FilesFolders/Remove.cpp
+    Backend/FilesFolders/Rename.cpp
+    Backend/FilesFolders/Copy.cpp
+    Backend/FilesFolders/Move.cpp
+    Backend/FilesFolders/Find.cpp
+    Backend/FilesFolders/Chown.cpp
+
     Backend/FileSystem/Login.cpp
     Backend/FileSystem/Logout.cpp   
     Backend/FileSystem/Mkfs.cpp
+    Backend/FileSystem/Reset.cpp
     Backend/Mounting/Mount.cpp
 
     Backend/Mounting/Mounted.cpp
@@ -50,6 +58,7 @@ add_executable(backend
     Backend/Users/Users.cpp
 
     Backend/Utilidades/Utilities.cpp
+    Backend/Utilidades/ResetUtil.cpp
 )
 
 target_include_directories(backend PRIVATE
