@@ -9,6 +9,7 @@ struct MountedPartition;
 std::string cmdMount(std::map<std::string, std::string> params);
 std::string cmdUnmount(std::map<std::string, std::string> params);
 std::string cmdMounted();
+void resetMounts();
 
 struct MountedPartition {
     std::string Id;

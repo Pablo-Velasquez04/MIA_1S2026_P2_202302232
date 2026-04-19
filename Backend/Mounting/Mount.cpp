@@ -12,15 +12,15 @@
 
 //ESTADO GLOBAL EN RAM
 
-static std::vector<MountedPartition> mountedPartitions;
+std::vector<MountedPartition> mountedPartitions;
 
 // Orden de aparición de cada disco (path → letra)
 // Disco2.mia fue el primero  → 'A'
 // Disco1.mia fue el segundo  → 'B'
 // Disco3.mia fue el tercero  → 'C'
-static std::map<std::string, char>   diskLetterMap;
-static std::map<std::string, int>    diskPartCount;  //cuántas particiones por disco
-static char nextLetter = 'A';
+std::map<std::string, char>   diskLetterMap;
+std::map<std::string, int>    diskPartCount;  //cuántas particiones por disco
+char nextLetter = 'A';
 
 //ACCESO GLOBAL — lo usan MKFS, LOGIN, REP, etc.
 
