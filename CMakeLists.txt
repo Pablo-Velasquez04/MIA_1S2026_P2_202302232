@@ -28,6 +28,7 @@ add_executable(backend
     Backend/FilesFolders/Move.cpp
     Backend/FilesFolders/Find.cpp
     Backend/FilesFolders/Chown.cpp
+    Backend/FilesFolders/Chmod.cpp
 
     Backend/FileSystem/Login.cpp
     Backend/FileSystem/Logout.cpp   
