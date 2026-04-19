@@ -117,6 +117,7 @@ std::string processLine(const std::string& rawLine) {
     else if (command == "chgrp")   return cmdChgrp(params);
     else if (command == "find")    return cmdFind(params);
     else if (command == "chown")   return cmdChown(params);
+    else if (command == "chmod")   return cmdChmod(params);
     else if (command == "execute") return cmdReset();
     else return "Error: Comando '" + command + "' no reconocido, intente de nuevo o ingrese un comando válido";
 }
