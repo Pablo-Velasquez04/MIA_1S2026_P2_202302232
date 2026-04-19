@@ -11,6 +11,9 @@
 std::string cmdMkdir (std::map<std::string, std::string> params);
 std::string cmdMkfile(std::map<std::string, std::string> params);
 std::string cmdCat   (std::map<std::string, std::string> params);
+std::string cmdRemove(std::map<std::string, std::string> params);
+std::string cmdRename(std::map<std::string, std::string> params);
+std::string cmdCopy  (std::map<std::string, std::string> params);
 
 //Helpers compartidos EXT2
 
@@ -38,10 +41,16 @@ bool ffHasPermission(const Inode& inode, int uid, int gid, char op); // op: 'r',
 int  ffLookup(std::fstream& disk, const SuperBloque& sb,
               int dirInodeIdx, const std::string& name);
 
+bool ffRemoveEntry(std::fstream& disk, SuperBloque& sb,
+                   int dirInodeIdx, const std::string& name);
+
 //Agrega una entrada (name, inodeIdx) en la carpeta dirInodeIdx
 //Retorna true si tuvo éxito
 bool ffAddEntry(std::fstream& disk, SuperBloque& sb,
                 int dirInodeIdx, const std::string& name, int inodeIdx);
+
+void ffFreeInode(std::fstream& disk, SuperBloque& sb, int idx);
+void ffFreeBlock(std::fstream& disk, SuperBloque& sb, int idx);
 
 //Navega la ruta y retorna el inodo final, -1 si no existe
 //Si createParents=true crea las carpetas que falten (para -r y -p)

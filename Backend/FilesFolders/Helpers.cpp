@@ -303,3 +303,48 @@ bool ffWritePointerBlock(std::fstream& disk, const SuperBloque& sb,
     long pos = sb.BlockStart + (long)idx * sb.BlockSize;
     return escribirStruct(disk, pos, pb);
 }
+void ffFreeInode(std::fstream& disk, SuperBloque& sb, int idx) {
+    char zero = '0';
+    disk.seekp(sb.BmInodeStart + idx);
+    disk.write(&zero, 1);
+    sb.FreeInodesCount++;
+    escribirStruct(disk, currentSession.sbStart, sb);
+}
+
+void ffFreeBlock(std::fstream& disk, SuperBloque& sb, int idx) {
+    char zero = '0';
+    disk.seekp(sb.BmBlockStart + idx);
+    disk.write(&zero, 1);
+    sb.FreeBlocksCount++;
+    escribirStruct(disk, currentSession.sbStart, sb);
+}
+
+bool ffRemoveEntry(std::fstream& disk, SuperBloque& sb,
+                   int dirInodeIdx, const std::string& name) {
+    Inode dirInode{};
+    if (!ffReadInode(disk, sb, dirInodeIdx, dirInode)) return false;
+
+    for (int i = 0; i < 12; i++) {
+        if (dirInode.Block[i] == -1) break;
+
+        FolderBlock fb{};
+        if (!ffReadFolderBlock(disk, sb, dirInode.Block[i], fb)) continue;
+
+        for (int j = 0; j < 4; j++) {
+            if (fb.content[j].Inodo != -1) {
+                std::string entryName(fb.content[j].Name, strnlen(fb.content[j].Name, 12));
+                if (entryName == name) {
+                    fb.content[j].Inodo = -1;
+                    memset(fb.content[j].Name, 0, 12);
+                    ffWriteFolderBlock(disk, sb, dirInode.Block[i], fb);
+
+                    dirInode.Size -= sizeof(Content);
+                    dirInode.Mtime = time(nullptr);
+                    ffWriteInode(disk, sb, dirInodeIdx, dirInode);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
