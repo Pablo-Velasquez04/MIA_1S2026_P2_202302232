@@ -146,8 +146,8 @@ int main() {
             auto body = json::parse(req.body);
             std::vector<std::string> commands = body["commands"];
 
-            // 1. Limpiar el estado de memoria antes de nuevos scripts.
-            processLine("execute");
+            // Removido a petición para preservar estado RAM entre ejecuciones: 
+            // processLine("execute");
 
             json responses = json::array();
             for (const auto& command : commands) {

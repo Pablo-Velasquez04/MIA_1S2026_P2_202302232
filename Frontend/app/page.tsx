@@ -101,9 +101,10 @@ export default function Home() {
     setIsLoading(true);
 
     // NUEVO: Ejecutar 'execute' silenciosamente para limpiar RAM en el backend (Reset Global)
-    if (isConnected) {
-      await executeCommand("execute");
-    }
+    // Comentado para preservar la sesión del usuario a petición:
+    // if (isConnected) {
+    //   await executeCommand("execute");
+    // }
     
     for (let line of allLines) {
       const trimmedLine = line.trim();
