@@ -108,6 +108,7 @@ std::string processLine(const std::string& rawLine) {
     else if (command == "remove")  return cmdRemove(params);
     else if (command == "rename")  return cmdRename(params);
     else if (command == "copy")    return cmdCopy(params);
+    else if (command == "move")    return cmdMove(params);
     else if (command == "rep")     return cmdRep(params);
     else if (command == "mkgrp")   return cmdMkgrp(params);
     else if (command == "rmgrp")   return cmdRmgrp(params);

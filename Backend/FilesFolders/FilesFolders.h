@@ -14,6 +14,7 @@ std::string cmdCat   (std::map<std::string, std::string> params);
 std::string cmdRemove(std::map<std::string, std::string> params);
 std::string cmdRename(std::map<std::string, std::string> params);
 std::string cmdCopy  (std::map<std::string, std::string> params);
+std::string cmdMove  (std::map<std::string, std::string> params);
 
 //Helpers compartidos EXT2
 
