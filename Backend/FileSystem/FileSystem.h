@@ -18,6 +18,7 @@ struct ActiveSession {
 std::string cmdMkfs  (std::map<std::string, std::string> params);
 std::string cmdLogin (std::map<std::string, std::string> params);
 std::string cmdLogout();
+std::string cmdLoss  (std::map<std::string, std::string> params);
 void resetSession();
 
 // Acceso global a la sesión — lo usan MKDIR, MKFILE, CAT, MKGRP, etc.
