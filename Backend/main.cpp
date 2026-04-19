@@ -137,6 +137,65 @@ int main() {
         res.set_content(content, contentType);
     });
 
+    //POST /api/execute-script
+    //Ejecuta múltiples comandos en lote, reiniciando el estado global previamente.
+    server.Post("/api/execute-script", [&setCORS](const httplib::Request& req,
+                                                   httplib::Response& res) {
+        setCORS(res);
+        try {
+            auto body = json::parse(req.body);
+            std::vector<std::string> commands = body["commands"];
+
+            // 1. Limpiar el estado de memoria antes de nuevos scripts.
+            processLine("execute");
+
+            json responses = json::array();
+            for (const auto& command : commands) {
+                std::string trimmed = command;
+                while (!trimmed.empty() && isspace(trimmed.front()))
+                    trimmed.erase(trimmed.begin());
+
+                if (trimmed.empty() || trimmed[0] == '#') {
+                    responses.push_back({{"success", true}, {"output", command}});
+                    continue;
+                }
+
+                std::string output = processLine(command);
+                bool isError = output.rfind("Error", 0) == 0;
+
+                json cmdRes = {
+                    {"success", !isError},
+                    {"output",  output},
+                };
+                if (isError) cmdRes["error"] = output;
+
+                if (command.find("rep") != std::string::npos || 
+                    command.find("REP") != std::string::npos) {
+                    auto pathMatch = command.find("-path=");
+                    if (pathMatch != std::string::npos) {
+                        std::string reportPath = command.substr(pathMatch + 6);
+                        if (!reportPath.empty() && reportPath[0] == '"')
+                            reportPath = reportPath.substr(1, reportPath.find('"', 1) - 1);
+                        else {
+                            auto spacePos = reportPath.find(' ');
+                            if (spacePos != std::string::npos)
+                                reportPath = reportPath.substr(0, spacePos);
+                        }
+                        cmdRes["reportPath"] = reportPath;
+                    }
+                }
+                responses.push_back(cmdRes);
+            }
+
+            res.set_content(responses.dump(), "application/json");
+
+        } catch (const std::exception& e) {
+            json error = {{"success", false}, {"error", e.what()}};
+            res.set_content(error.dump(), "application/json");
+            res.status = 400;
+        }
+    });
+
     std::cout << "ExtreamFS backend corriendo en http://localhost:8080\n";
     std::cout << "Endpoints:\n";
     std::cout << "  GET  /api/health\n";
