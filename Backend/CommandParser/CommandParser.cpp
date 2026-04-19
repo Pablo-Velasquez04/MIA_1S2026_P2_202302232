@@ -105,12 +105,16 @@ std::string processLine(const std::string& rawLine) {
     else if (command == "mkfile")  return cmdMkfile(params);
     else if (command == "mkdir")   return cmdMkdir(params);
     else if (command == "cat")     return cmdCat(params);
+    else if (command == "remove")  return cmdRemove(params);
+    else if (command == "rename")  return cmdRename(params);
+    else if (command == "copy")    return cmdCopy(params);
     else if (command == "rep")     return cmdRep(params);
     else if (command == "mkgrp")   return cmdMkgrp(params);
     else if (command == "rmgrp")   return cmdRmgrp(params);
     else if (command == "mkusr")   return cmdMkusr(params);
     else if (command == "rmusr")   return cmdRmusr(params);
     else if (command == "chgrp")   return cmdChgrp(params);
+    else if (command == "execute") return cmdReset();
     else return "Error: Comando '" + command + "' no reconocido, intente de nuevo o ingrese un comando válido";
 }
 
