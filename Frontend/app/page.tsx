@@ -7,6 +7,7 @@ import { MountedPartitions, Partition } from "@/components/mounted-partitions";
 import { ReportViewer, Report } from "@/components/report-viewer";
 import { ConnectionStatus } from "@/components/connection-status";
 import { CommandReference } from "@/components/command-reference";
+import { JournalingView, JournalEntry } from "@/components/journaling-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { executeCommand, getReportUrl } from "@/lib/api";
 import { HardDrive, Github, BookOpen } from "lucide-react";
@@ -17,6 +18,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [partitions, setPartitions] = useState<Partition[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
   // Agregar línea al output
@@ -89,6 +91,19 @@ export default function Home() {
     }
   };
 
+  // Detectar si es un comando JOURNALING exitoso y parsear JSON
+  const handleJournalingResponse = (command: string, response: string) => {
+    const journalMatch = command.toLowerCase().trim().startsWith("journaling");
+    if (journalMatch && response.trim().startsWith("[")) {
+      try {
+        const entries = JSON.parse(response);
+        setJournalEntries(entries);
+      } catch (e) {
+        console.error("Error al parsear Journaling JSON", e);
+      }
+    }
+  };
+
   // Ejecutar comandos
   const handleExecute = async (commandText: string) => {
     const allLines = commandText.split("\n");
@@ -135,6 +150,7 @@ export default function Home() {
           lines.forEach((line: string) => addOutputLine("success", line));
           handleMountResponse(trimmedLine, response.output);
           handleReportResponse(trimmedLine, response.output);
+          handleJournalingResponse(trimmedLine, response.output);
         } else {
           const raw = response.error || response.output || "Error desconocido";
           const lines = raw.split('\n').filter((l: string) => l.trim() !== '');
@@ -159,6 +175,15 @@ export default function Home() {
     setReports((prev) => prev.filter((r) => r.id !== id));
   };
 
+  // Se dispara cuando el backend detecta conexión (incluyendo primer arranque).
+  // Limpia el estado de datos del frontend para que no muestre datos de una sesión anterior.
+  const handleBackendReconnect = () => {
+    setPartitions([]);
+    setReports([]);
+    setJournalEntries([]);
+    addOutputLine("info", "Backend conectado. Estado del frontend limpiado. Particiones montadas y journaling reiniciados.");
+  };
+
   return (
     <div className="min-h-screen bg-transparent">
       {/* Header */}
@@ -177,7 +202,7 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <ConnectionStatus onStatusChange={setIsConnected} />
+              <ConnectionStatus onStatusChange={setIsConnected} onReconnect={handleBackendReconnect} />
               <Button variant="outline" size="sm" asChild>
                 <a
                   href="https://github.com/Pablo-Velasquez04/MIA_1S2026_P1_2023002232.git"
@@ -212,7 +237,7 @@ export default function Home() {
         {/* Bottom Section - Info Panels */}
         <div className="w-full">
           <Tabs defaultValue="partitions" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+            <TabsList className="grid w-full grid-cols-3 lg:w-[450px]">
               <TabsTrigger value="partitions" className="gap-1">
                 <HardDrive className="h-4 w-4" />
                 Particiones
@@ -220,6 +245,10 @@ export default function Home() {
               <TabsTrigger value="reference" className="gap-1">
                 <BookOpen className="h-4 w-4" />
                 Referencia
+              </TabsTrigger>
+              <TabsTrigger value="journaling" className="gap-1">
+                <HardDrive className="h-4 w-4" />
+                Journaling
               </TabsTrigger>
             </TabsList>
             <TabsContent value="partitions" className="mt-4 space-y-4">
@@ -231,6 +260,9 @@ export default function Home() {
             </TabsContent>
             <TabsContent value="reference" className="mt-4">
               <CommandReference />
+            </TabsContent>
+            <TabsContent value="journaling" className="mt-4">
+              <JournalingView entries={journalEntries} />
             </TabsContent>
           </Tabs>
         </div>
