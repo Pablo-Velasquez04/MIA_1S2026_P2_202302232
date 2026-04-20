@@ -36,12 +36,13 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [rememberUser, setRememberUser] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState("");
+  const [loggedPartitionId, setLoggedPartitionId] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     const saved = window.localStorage.getItem("extreamfs-login");
     if (saved) {
       try {
@@ -55,32 +56,71 @@ export default function Home() {
     }
   }, []);
 
-  const handleLoginSubmit = (event: FormEvent<HTMLFormElement>) => {
+  // Conecta el formulario al comando `login` del backend
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoginError("");
 
-    if (!partitionId.trim() || !username.trim() || !password.trim()) {
-      setLoginError("Todos los campos son obligatorios para verificar el acceso.");
+    const id = partitionId.trim();
+    const user = username.trim();
+    const pass = password.trim();
+
+    if (!id || !user || !pass) {
+      setLoginError("Todos los campos son obligatorios.");
       return;
     }
 
-    if (rememberUser) {
-      window.localStorage.setItem(
-        "extreamfs-login",
-        JSON.stringify({ partitionId: partitionId.trim(), username: username.trim() })
-      );
-    } else {
-      window.localStorage.removeItem("extreamfs-login");
+    if (!isConnected) {
+      setLoginError("El backend no está conectado. Inicia el servidor primero.");
+      return;
     }
 
-    setLoggedInUser(username.trim());
-    setIsLoggedIn(true);
-    setLoginOpen(false);
+    setIsLoginLoading(true);
+    try {
+      const cmd = `login -user=${user} -pass=${pass} -id=${id}`;
+      const response = await executeCommand(cmd);
+
+      if (response.success) {
+        // Login exitoso
+        if (rememberUser) {
+          window.localStorage.setItem(
+            "extreamfs-login",
+            JSON.stringify({ partitionId: id, username: user })
+          );
+        } else {
+          window.localStorage.removeItem("extreamfs-login");
+        }
+        setLoggedInUser(user);
+        setLoggedPartitionId(id);
+        setIsLoggedIn(true);
+        setLoginOpen(false);
+        setPassword("");
+        addOutputLine("success", `Login exitoso como '${user}' en partición '${id}'.`);
+      } else {
+        // Error del backend → mostrarlo en el dialog
+        const errorText = (response.error || response.output || "Error desconocido")
+          .replace(/^Error:\s*/i, "")
+          .trim();
+        setLoginError(errorText);
+      }
+    } catch (e) {
+      setLoginError(`Error de conexión con el backend: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setIsLoginLoading(false);
+    }
   };
 
-  const handleLogout = () => {
+  // Llama al comando `logout` del backend y limpia el estado local
+  const handleLogout = async () => {
+    if (isConnected) {
+      try {
+        await executeCommand("logout");
+      } catch { /* ignorar errores de red al cerrar sesión */ }
+    }
     setIsLoggedIn(false);
     setLoggedInUser("");
+    setLoggedPartitionId("");
+    addOutputLine("info", "Sesión cerrada.");
   };
 
   // Agregar línea al output
@@ -336,8 +376,8 @@ export default function Home() {
                       </p>
                     ) : null}
                     <DialogFooter>
-                      <Button type="submit" className="w-full">
-                        Verificar datos
+                      <Button type="submit" className="w-full" disabled={isLoginLoading}>
+                        {isLoginLoading ? "Verificando..." : "Verificar datos"}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -367,7 +407,7 @@ export default function Home() {
               <div>
                 <p className="font-semibold">Visualizador de Sistemas de archivos habilitado</p>
                 <p className="text-sm text-muted-foreground">
-                  Conectado como <span className="font-medium">{loggedInUser}</span> en partición <span className="font-medium">{partitionId}</span>.
+                  Conectado como <span className="font-medium">{loggedInUser}</span> en partición <span className="font-medium">{loggedPartitionId}</span>.
                 </p>
               </div>
               <Button variant="secondary" size="sm" onClick={handleLogout}>
