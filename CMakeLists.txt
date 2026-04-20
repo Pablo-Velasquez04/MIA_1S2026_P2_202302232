@@ -34,6 +34,7 @@ add_executable(backend
     Backend/FileSystem/Logout.cpp   
     Backend/FileSystem/Mkfs.cpp
     Backend/FileSystem/Loss.cpp
+    Backend/FileSystem/Journaling.cpp
     Backend/FileSystem/Reset.cpp
     Backend/Mounting/Mount.cpp
 
