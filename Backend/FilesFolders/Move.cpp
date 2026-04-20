@@ -17,8 +17,17 @@ std::string cmdMove(std::map<std::string, std::string> params) {
 
     if (srcPath == "/") return "Error: No se puede mover la raíz\n";
 
-    // Validar cíclicos: destino no puede ser hijo directo del origen (ej: mover /a hacia /a/b)
-    if (destPath == srcPath || (destPath.find(srcPath + "/") == 0)) {
+    // Separar la ruta destino en carpeta padre + nombre destino
+    auto destParts = ffSplitPath(destPath);
+    if (destParts.empty()) return "Error: Ruta de destino inválida\n";
+
+    std::string destName = destParts.back();
+    std::string destDirPath = "/";
+    for (size_t i = 0; i + 1 < destParts.size(); i++)
+        destDirPath += destParts[i] + (i + 2 < destParts.size() ? "/" : "");
+
+    // Validar cíclicos basándose en directorio padre
+    if (destDirPath == srcPath || (destDirPath.find(srcPath + "/") == 0)) {
         return "Error: No se puede mover una carpeta dentro de sí misma o uno de sus subdirectorios\n";
     }
 
@@ -28,15 +37,17 @@ std::string cmdMove(std::map<std::string, std::string> params) {
     SuperBloque sb;
     if (!ffReadSuperblock(disk, sb)) { disk.close(); return "Error: No se pudo leer el superbloque\n"; }
 
-    // 1. Resolver Inodo Destino
-    int destDirInodeIdx = ffResolvePath(disk, sb, destPath, false, currentSession.uid, currentSession.gid);
-    if (destDirInodeIdx < 0) { disk.close(); return "Error: La carpeta de destino '" + destPath + "' no existe\n"; }
+    // 1. Resolver Carpeta Destino (solo la parte de directorio)
+    int destDirInodeIdx = 0;
+    if (destDirPath != "/") {
+        destDirInodeIdx = ffResolvePath(disk, sb, destDirPath, false, currentSession.uid, currentSession.gid);
+        if (destDirInodeIdx < 0) { disk.close(); return "Error: La carpeta de destino '" + destDirPath + "' no existe\n"; }
+    }
 
     Inode destInode{};
     ffReadInode(disk, sb, destDirInodeIdx, destInode);
     if (destInode.Type != '0') { disk.close(); return "Error: El destino debe ser una carpeta\n"; }
     
-    // Validar permiso de Escritura en destino
     if (!ffHasPermission(destInode, currentSession.uid, currentSession.gid, 'w')) {
         disk.close();
         return "Error: No tiene permisos de escritura en la carpeta destino\n";
@@ -49,13 +60,12 @@ std::string cmdMove(std::map<std::string, std::string> params) {
     Inode srcInode{};
     ffReadInode(disk, sb, srcInodeIdx, srcInode);
 
-    // Validar permiso de Escritura en el Origen (requisito del enunciado)
     if (!ffHasPermission(srcInode, currentSession.uid, currentSession.gid, 'w')) {
         disk.close();
         return "Error: No tiene permiso de escritura sobre el elemento a mover\n";
     }
 
-    // 3. Obtener el padre del origen y el nombre del archivo
+    // 3. Obtener el padre del origen y el nombre del archivo original
     auto srcParts = ffSplitPath(srcPath);
     std::string srcName = srcParts.back();
     std::string srcParentPath = "/";
@@ -67,52 +77,45 @@ std::string cmdMove(std::map<std::string, std::string> params) {
     int srcParentInodeIdx = ffResolvePath(disk, sb, srcParentPath, false, currentSession.uid, currentSession.gid);
     if (srcParentInodeIdx < 0) { disk.close(); return "Error: No se pudo encontrar el padre del origen\n"; }
 
-    // Verificar si el archivo ya existe en destino
-    if (ffLookup(disk, sb, destDirInodeIdx, srcName) != -1) {
+    // Verificar si el nuevo nombre ya existe en destino
+    if (ffLookup(disk, sb, destDirInodeIdx, destName) != -1) {
         disk.close();
-        return "Error: Ya existe un elemento llamado '" + srcName + "' en el destino\n";
+        return "Error: Ya existe un elemento llamado '" + destName + "' en el destino\n";
     }
 
-    // 4. Mover referencias
+    // 4. Remover referencia antigua (con nombre original)
     if (!ffRemoveEntry(disk, sb, srcParentInodeIdx, srcName)) {
         disk.close();
-        return "Error: No se pudo remover la referencia antigua (el origen está perdido)\n";
+        return "Error: No se pudo remover la referencia antigua\n";
     }
 
-    if (!ffAddEntry(disk, sb, destDirInodeIdx, srcName, srcInodeIdx)) {
-        // En un FS real, se intentaría hacer rollback.
+    // 5. Agregar nueva referencia (con nombre destino)
+    if (!ffAddEntry(disk, sb, destDirInodeIdx, destName, srcInodeIdx)) {
         disk.close();
-        return "Error: No se pudo agregar la referencia en el destino (No hay espacio libre en la carpeta)\n";
+        return "Error: No se pudo agregar la referencia en el destino\n";
     }
 
-    // 5. Si el origen es una CARPETA, debemos actualizar su contenido (el registro "..")
+    // 6. Si el origen es CARPETA, actualizar el registro ".."
     if (srcInode.Type == '0') {
         if (srcInode.Block[0] != -1) {
             FolderBlock fb{};
             if (ffReadFolderBlock(disk, sb, srcInode.Block[0], fb)) {
-                // Siempre el segundo [1] es el registro ".." si se creó con nuestro sistema mkfs/mkdir
-                if (strncmp(fb.content[1].Name, "..", 2) == 0) {
-                    fb.content[1].Inodo = destDirInodeIdx;
-                    ffWriteFolderBlock(disk, sb, srcInode.Block[0], fb);
-                } else {
-                    // Refback search for "..":
-                    for(int j=0; j<4; ++j) {
-                        if (strncmp(fb.content[j].Name, "..", 2) == 0) {
-                            fb.content[j].Inodo = destDirInodeIdx;
-                            ffWriteFolderBlock(disk, sb, srcInode.Block[0], fb);
-                            break;
-                        }
+                for (int j = 0; j < 4; ++j) {
+                    if (strncmp(fb.content[j].Name, "..", 2) == 0) {
+                        fb.content[j].Inodo = destDirInodeIdx;
+                        ffWriteFolderBlock(disk, sb, srcInode.Block[0], fb);
+                        break;
                     }
                 }
             }
         }
     }
 
-    // 6. Journaling (EXT3)
+    // 7. Journaling (EXT3)
     if (sb.FilesystemType == 3) {
-        // Registrar move
+        ffWriteJournal(disk, sb, "move", srcPath, destPath);
     }
 
     disk.close();
-    return "Elemento '" + srcName + "' movido exitosamente a '" + destPath + "'\n";
+    return "Elemento '" + srcPath + "' movido exitosamente a '" + destPath + "'\n";
 }

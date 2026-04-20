@@ -67,3 +67,4 @@ int  ffResolvePath(std::fstream& disk, SuperBloque& sb,
 std::vector<std::string> ffSplitPath(const std::string& path);
 bool ffReadPointerBlock (std::fstream& disk, const SuperBloque& sb, int idx, PointerBlock& out);
 bool ffWritePointerBlock(std::fstream& disk, const SuperBloque& sb, int idx, const PointerBlock& pb);
+void ffWriteJournal(std::fstream& disk, const SuperBloque& sb, const std::string& op, const std::string& path, const std::string& content);

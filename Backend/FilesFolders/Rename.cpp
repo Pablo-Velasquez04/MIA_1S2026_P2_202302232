@@ -96,7 +96,7 @@ std::string cmdRename(std::map<std::string, std::string> params) {
 
     // 7. EXT3 Journaling
     if (sb.FilesystemType == 3) {
-        // Registrar operación rename
+        ffWriteJournal(disk, sb, "rename", path, newName);
     }
 
     disk.close();

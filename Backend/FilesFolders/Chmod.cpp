@@ -117,6 +117,9 @@ std::string cmdChmod(std::map<std::string, std::string> params) {
         ffWriteInode(disk, sb, targetInodeIdx, curInode);
     }
 
+    if (sb.FilesystemType == 3) {
+        ffWriteJournal(disk, sb, "chmod", path, ugo);
+    }
     disk.close();
     return "Permisos de " + path + " cambiados a " + ugo + " exitosamente.\n";
 }

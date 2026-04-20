@@ -37,9 +37,9 @@ struct EBR {
 //--------- ESTRUCTURAS EXT3 --------------------------------------
 
 struct Journaling {
-    char   Operation[10];    // "mkdir", "mkfile", etc.
-    char   Path[20];         // Ruta del archivo/carpeta
-    char   Content[12];      // Contenido (truncado para ajuste de 50 bytes)
+    char   Operation[16];    // "mkdir", "mkfile", etc.
+    char   Path[150];        // Ruta del archivo/carpeta (ruta completa)
+    char   Content[150];     // Contenido o ruta destino completa
     time_t Date;             // Fecha de la operación
 };
 

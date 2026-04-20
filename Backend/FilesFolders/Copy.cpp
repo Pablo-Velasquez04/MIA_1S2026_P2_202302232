@@ -95,6 +95,15 @@ std::string cmdCopy(std::map<std::string, std::string> params) {
     std::string srcPath  = params["path"];
     std::string destPath = params["destino"];
 
+    // Separar la ruta destino en carpeta padre + nombre destino
+    auto destParts = ffSplitPath(destPath);
+    if (destParts.empty()) return "Error: Ruta de destino inválida\n";
+
+    std::string destName = destParts.back();
+    std::string destDirPath = "/";
+    for (size_t i = 0; i + 1 < destParts.size(); i++)
+        destDirPath += destParts[i] + (i + 2 < destParts.size() ? "/" : "");
+
     std::fstream disk(currentSession.diskPath, std::ios::binary | std::ios::in | std::ios::out);
     if (!disk.is_open()) return "Error: No se pudo abrir el disco\n";
 
@@ -105,9 +114,12 @@ std::string cmdCopy(std::map<std::string, std::string> params) {
     int srcInodeIdx = ffResolvePath(disk, sb, srcPath, false, currentSession.uid, currentSession.gid);
     if (srcInodeIdx < 0) { disk.close(); return "Error: No existe la ruta de origen '" + srcPath + "'\n"; }
 
-    // 2. Resolver destino (debe ser una carpeta existente)
-    int destDirInodeIdx = ffResolvePath(disk, sb, destPath, false, currentSession.uid, currentSession.gid);
-    if (destDirInodeIdx < 0) { disk.close(); return "Error: La carpeta de destino '" + destPath + "' no existe\n"; }
+    // 2. Resolver carpeta destino (solo la parte de directorio)
+    int destDirInodeIdx = 0;
+    if (destDirPath != "/") {
+        destDirInodeIdx = ffResolvePath(disk, sb, destDirPath, false, currentSession.uid, currentSession.gid);
+        if (destDirInodeIdx < 0) { disk.close(); return "Error: La carpeta de destino '" + destDirPath + "' no existe\n"; }
+    }
 
     Inode destInode{};
     ffReadInode(disk, sb, destDirInodeIdx, destInode);
@@ -119,16 +131,18 @@ std::string cmdCopy(std::map<std::string, std::string> params) {
         return "Error: No tiene permisos de escritura en la carpeta destino\n";
     }
 
-    // 4. Obtener nombre del elemento a copiar
-    auto parts = ffSplitPath(srcPath);
-    std::string name = parts.empty() ? "raíz_copy" : parts.back();
+    // 4. Verificar que el nuevo nombre no exista ya
+    if (ffLookup(disk, sb, destDirInodeIdx, destName) != -1) {
+        disk.close();
+        return "Error: Ya existe un elemento llamado '" + destName + "' en el destino\n";
+    }
 
-    // 5. Iniciar copia recursiva
-    int res = recursiveCopy(disk, sb, srcInodeIdx, destDirInodeIdx, name);
+    // 5. Iniciar copia recursiva con el nuevo nombre
+    int res = recursiveCopy(disk, sb, srcInodeIdx, destDirInodeIdx, destName);
 
     // 6. Journaling (EXT3)
     if (sb.FilesystemType == 3 && res != -1) {
-        // Registrar copy
+        ffWriteJournal(disk, sb, "copy", srcPath, destPath);
     }
 
     disk.close();

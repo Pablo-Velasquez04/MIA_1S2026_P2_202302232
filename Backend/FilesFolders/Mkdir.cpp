@@ -129,6 +129,7 @@ std::string cmdMkdir(std::map<std::string, std::string> params) {
         return "Error: No se pudo agregar entrada en la carpeta padre.\n";
     }
 
+    ffWriteJournal(disk, sb, "mkdir", path, "");
     disk.close();
 
     // Sincronización con el sistema de archivos real

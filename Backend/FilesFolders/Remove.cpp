@@ -109,8 +109,7 @@ std::string cmdRemove(std::map<std::string, std::string> params) {
 
     // 5. EXT3 Journaling
     if (sb.FilesystemType == 3) {
-        // Registrar operación remove (implementar según patrón en Mkfs/Mkdir)
-        // Por brevedad, asumo que ya existe una función o se sigue el patrón de escritura directa
+        ffWriteJournal(disk, sb, "remove", path, "");
     }
 
     disk.close();

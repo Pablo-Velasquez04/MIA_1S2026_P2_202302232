@@ -101,6 +101,7 @@ std::string processLine(const std::string& rawLine) {
     else if (command == "mounted") return cmdMounted();
     else if (command == "mkfs")    return cmdMkfs(params);
     else if (command == "loss")    return cmdLoss(params);
+    else if (command == "journaling") return cmdJournaling(params);
     else if (command == "login")   return cmdLogin(params);
     else if (command == "logout")  return cmdLogout();
     else if (command == "mkfile")  return cmdMkfile(params);

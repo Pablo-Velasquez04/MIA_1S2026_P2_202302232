@@ -7,7 +7,9 @@
 
 extern ActiveSession currentSession;
 
-static void recursiveFind(std::fstream& disk, const SuperBloque& sb, int inodeIdx, const std::regex& nameRegex, std::string& output, std::string indent) {
+static void recursiveFind(std::fstream& disk, const SuperBloque& sb, int inodeIdx,
+                           const std::regex& nameRegex, std::string& output,
+                           const std::string& currentPath) {
     if (inodeIdx < 0 || inodeIdx >= sb.InodesCount) return;
 
     Inode curInode;
@@ -22,13 +24,18 @@ static void recursiveFind(std::fstream& disk, const SuperBloque& sb, int inodeId
                 std::string entryName(fb.content[e].Name, strnlen(fb.content[e].Name, 12));
                 if (entryName == "." || entryName == "..") continue;
 
+                // Construir la ruta completa del hijo
+                std::string childPath = currentPath;
+                if (childPath.back() != '/') childPath += '/';
+                childPath += entryName;
+
                 if (std::regex_match(entryName, nameRegex)) {
-                    output += indent + "|_ " + entryName + "\n";
+                    output += childPath + "\n";
                 }
 
                 Inode childInode;
                 if (ffReadInode(disk, sb, fb.content[e].Inodo, childInode) && childInode.Type == '0') {
-                    recursiveFind(disk, sb, fb.content[e].Inodo, nameRegex, output, indent + "  ");
+                    recursiveFind(disk, sb, fb.content[e].Inodo, nameRegex, output, childPath);
                 }
             }
         }
@@ -121,9 +128,10 @@ std::string cmdFind(std::map<std::string, std::string> params) {
         return "Error: Patrón de búsqueda inválido en -name.\n";
     }
 
-    std::string output = path + "\n";
-    recursiveFind(disk, sb, startInodeIdx, nameRegex, output, "");
+    std::string output = "";
+    recursiveFind(disk, sb, startInodeIdx, nameRegex, output, path);
 
     disk.close();
+    if (output.empty()) output = "No se encontraron coincidencias para el patrón '" + name + "'.\n";
     return output;
 }

@@ -130,6 +130,9 @@ std::string cmdChown(std::map<std::string, std::string> params) {
         ffWriteInode(disk, sb, startInodeIdx, curInode);
     }
 
+    if (sb.FilesystemType == 3) {
+        ffWriteJournal(disk, sb, "chown", path, user);
+    }
     disk.close();
     return "Propietario de " + path + " cambiado a " + user + " exitosamente.\n";
 }

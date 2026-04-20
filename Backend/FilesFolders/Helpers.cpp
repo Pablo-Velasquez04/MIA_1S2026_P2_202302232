@@ -348,3 +348,29 @@ bool ffRemoveEntry(std::fstream& disk, SuperBloque& sb,
     }
     return false;
 }
+
+void ffWriteJournal(std::fstream& disk, const SuperBloque& sb, const std::string& op, const std::string& path, const std::string& content) {
+    if (sb.FilesystemType != 3) return;
+
+    long journalStart = currentSession.sbStart + sizeof(SuperBloque);
+    int journalCount = sb.InodesCount;
+
+    for (int i = 0; i < journalCount; i++) {
+        Journaling j;
+        long pos = journalStart + (long)i * sizeof(Journaling);
+        leerStruct(disk, pos, j);
+        
+        if (j.Operation[0] == '\0') {
+            memset(&j, 0, sizeof(Journaling));
+            strncpy(j.Operation, op.c_str(), sizeof(j.Operation) - 1);
+            j.Operation[sizeof(j.Operation) - 1] = '\0';
+            strncpy(j.Path, path.c_str(), sizeof(j.Path) - 1);
+            j.Path[sizeof(j.Path) - 1] = '\0';
+            strncpy(j.Content, content.c_str(), sizeof(j.Content) - 1);
+            j.Content[sizeof(j.Content) - 1] = '\0';
+            j.Date = time(nullptr);
+            escribirStruct(disk, pos, j);
+            break;
+        }
+    }
+}
