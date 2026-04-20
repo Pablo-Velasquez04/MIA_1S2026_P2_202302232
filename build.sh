@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+echo "Matando instancias anteriores del backend (si existen)..."
+pkill -f "./build/backend" 2>/dev/null || true
+fuser -k 8080/tcp 2>/dev/null || true
+sleep 1
+
 echo "Limpiando build..."
 rm -rf build
 
