@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback, FormEvent } from "react";
 import { CommandEditor } from "@/components/command-editor";
 import { OutputConsole, OutputLine } from "@/components/output-console";
 import { MountedPartitions, Partition } from "@/components/mounted-partitions";
@@ -9,6 +9,15 @@ import { ConnectionStatus } from "@/components/connection-status";
 import { CommandReference } from "@/components/command-reference";
 import { JournalingView, JournalEntry } from "@/components/journaling-view";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { executeCommand, getReportUrl } from "@/lib/api";
 import { HardDrive, Github, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +29,59 @@ export default function Home() {
   const [reports, setReports] = useState<Report[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [partitionId, setPartitionId] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberUser, setRememberUser] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loggedInUser, setLoggedInUser] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const saved = window.localStorage.getItem("extreamfs-login");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved) as { partitionId: string; username: string };
+        setPartitionId(data.partitionId || "");
+        setUsername(data.username || "");
+        setRememberUser(true);
+      } catch {
+        window.localStorage.removeItem("extreamfs-login");
+      }
+    }
+  }, []);
+
+  const handleLoginSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoginError("");
+
+    if (!partitionId.trim() || !username.trim() || !password.trim()) {
+      setLoginError("Todos los campos son obligatorios para verificar el acceso.");
+      return;
+    }
+
+    if (rememberUser) {
+      window.localStorage.setItem(
+        "extreamfs-login",
+        JSON.stringify({ partitionId: partitionId.trim(), username: username.trim() })
+      );
+    } else {
+      window.localStorage.removeItem("extreamfs-login");
+    }
+
+    setLoggedInUser(username.trim());
+    setIsLoggedIn(true);
+    setLoginOpen(false);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setLoggedInUser("");
+  };
 
   // Agregar línea al output
   const addOutputLine = useCallback(
@@ -203,9 +265,87 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <ConnectionStatus onStatusChange={setIsConnected} onReconnect={handleBackendReconnect} />
+              <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Iniciar sesión
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Login de usuario</DialogTitle>
+                    <DialogDescription>
+                      Ingresa ID de partición, usuario y contraseña para acceder al visualizador.  Previamente debío de ejecutar comandos tipo: MKGRP, RMGRP, MKUSR, RMUSR para crear grupos y usuarios en el sistema de archivos simulado.  Este login es solo para habilitar la vista de particiones montadas y journaling, no afecta la ejecución de comandos en el editor.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form className="space-y-4" onSubmit={handleLoginSubmit}>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium" htmlFor="partitionId">
+                        ID Partición
+                      </label>
+                      <input
+                        id="partitionId"
+                        type="text"
+                        value={partitionId}
+                        onChange={(event) => setPartitionId(event.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        placeholder="Ej. 01A"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium" htmlFor="username">
+                        Usuario
+                      </label>
+                      <input
+                        id="username"
+                        type="text"
+                        value={username}
+                        onChange={(event) => setUsername(event.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        placeholder="Nombre de usuario"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium" htmlFor="password">
+                        Contraseña
+                      </label>
+                      <input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        placeholder="********"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="rememberUser"
+                        type="checkbox"
+                        checked={rememberUser}
+                        onChange={(event) => setRememberUser(event.target.checked)}
+                        className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+                      />
+                      <label htmlFor="rememberUser" className="text-sm">
+                        Recordar usuario
+                      </label>
+                    </div>
+                    {loginError ? (
+                      <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        {loginError}
+                      </p>
+                    ) : null}
+                    <DialogFooter>
+                      <Button type="submit" className="w-full">
+                        Verificar datos
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
               <Button variant="outline" size="sm" asChild>
                 <a
-                  href="https://github.com/Pablo-Velasquez04/MIA_1S2026_P1_2023002232.git"
+                  href="https://github.com/Pablo-Velasquez04/MIA_1S2026_P2_202302232.git"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="gap-2"
@@ -221,6 +361,21 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {isLoggedIn ? (
+          <div className="rounded-lg border border-foreground/10 bg-foreground/5 p-4 text-sm text-foreground/90 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="font-semibold">Visualizador de Sistemas de archivos habilitado</p>
+                <p className="text-sm text-muted-foreground">
+                  Conectado como <span className="font-medium">{loggedInUser}</span> en partición <span className="font-medium">{partitionId}</span>.
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={handleLogout}>
+                Cerrar sesión
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {/* Top Section - Editor & Console */}
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 items-stretch">
           {/* Left Column - Command Editor */}
