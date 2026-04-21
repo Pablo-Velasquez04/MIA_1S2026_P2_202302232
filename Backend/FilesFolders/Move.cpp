@@ -17,17 +17,12 @@ std::string cmdMove(std::map<std::string, std::string> params) {
 
     if (srcPath == "/") return "Error: No se puede mover la raíz\n";
 
-    // Separar la ruta destino en carpeta padre + nombre destino
-    auto destParts = ffSplitPath(destPath);
-    if (destParts.empty()) return "Error: Ruta de destino inválida\n";
+    auto srcParts = ffSplitPath(srcPath);
+    if (srcParts.empty()) return "Error: Ruta origen inválida\n";
+    std::string srcName = srcParts.back();
 
-    std::string destName = destParts.back();
-    std::string destDirPath = "/";
-    for (size_t i = 0; i + 1 < destParts.size(); i++)
-        destDirPath += destParts[i] + (i + 2 < destParts.size() ? "/" : "");
-
-    // Validar cíclicos basándose en directorio padre
-    if (destDirPath == srcPath || (destDirPath.find(srcPath + "/") == 0)) {
+    // Validar cíclicos basándose en directorio destino y origen
+    if (destPath == srcPath || (destPath.find(srcPath + "/") == 0)) {
         return "Error: No se puede mover una carpeta dentro de sí misma o uno de sus subdirectorios\n";
     }
 
@@ -37,12 +32,12 @@ std::string cmdMove(std::map<std::string, std::string> params) {
     SuperBloque sb;
     if (!ffReadSuperblock(disk, sb)) { disk.close(); return "Error: No se pudo leer el superbloque\n"; }
 
-    // 1. Resolver Carpeta Destino (solo la parte de directorio)
+    // 1. Resolver Carpeta Destino directamente desde destPath
     int destDirInodeIdx = 0;
-    if (destDirPath != "/") {
-        destDirInodeIdx = ffResolvePath(disk, sb, destDirPath, false, currentSession.uid, currentSession.gid);
-        if (destDirInodeIdx < 0) { disk.close(); return "Error: La carpeta de destino '" + destDirPath + "' no existe\n"; }
+    if (destPath != "/") {
+        destDirInodeIdx = ffResolvePath(disk, sb, destPath, false, currentSession.uid, currentSession.gid);
     }
+    if (destDirInodeIdx < 0) { disk.close(); return "Error: La carpeta de destino '" + destPath + "' no existe\n"; }
 
     Inode destInode{};
     ffReadInode(disk, sb, destDirInodeIdx, destInode);
@@ -65,22 +60,22 @@ std::string cmdMove(std::map<std::string, std::string> params) {
         return "Error: No tiene permiso de escritura sobre el elemento a mover\n";
     }
 
-    // 3. Obtener el padre del origen y el nombre del archivo original
-    auto srcParts = ffSplitPath(srcPath);
-    std::string srcName = srcParts.back();
+    // 3. Obtener el padre del origen
     std::string srcParentPath = "/";
-    for (size_t i = 0; i < srcParts.size() - 1; i++) {
-        if (i > 0) srcParentPath += "/";
-        srcParentPath += srcParts[i];
+    for (size_t i = 0; i + 1 < srcParts.size(); i++) {
+        srcParentPath += srcParts[i] + (i + 2 < srcParts.size() ? "/" : "");
     }
 
-    int srcParentInodeIdx = ffResolvePath(disk, sb, srcParentPath, false, currentSession.uid, currentSession.gid);
+    int srcParentInodeIdx = 0;
+    if (srcParts.size() > 1) {
+        srcParentInodeIdx = ffResolvePath(disk, sb, srcParentPath, false, currentSession.uid, currentSession.gid);
+    }
     if (srcParentInodeIdx < 0) { disk.close(); return "Error: No se pudo encontrar el padre del origen\n"; }
 
-    // Verificar si el nuevo nombre ya existe en destino
-    if (ffLookup(disk, sb, destDirInodeIdx, destName) != -1) {
+    // Verificar si el nombre original ya existe en destino
+    if (ffLookup(disk, sb, destDirInodeIdx, srcName) != -1) {
         disk.close();
-        return "Error: Ya existe un elemento llamado '" + destName + "' en el destino\n";
+        return "Error: Ya existe un elemento llamado '" + srcName + "' en el destino\n";
     }
 
     // 4. Remover referencia antigua (con nombre original)
@@ -89,8 +84,8 @@ std::string cmdMove(std::map<std::string, std::string> params) {
         return "Error: No se pudo remover la referencia antigua\n";
     }
 
-    // 5. Agregar nueva referencia (con nombre destino)
-    if (!ffAddEntry(disk, sb, destDirInodeIdx, destName, srcInodeIdx)) {
+    // 5. Agregar nueva referencia (con nombre original)
+    if (!ffAddEntry(disk, sb, destDirInodeIdx, srcName, srcInodeIdx)) {
         disk.close();
         return "Error: No se pudo agregar la referencia en el destino\n";
     }

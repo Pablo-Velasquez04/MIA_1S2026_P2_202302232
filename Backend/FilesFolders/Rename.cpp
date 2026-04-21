@@ -14,7 +14,6 @@ std::string cmdRename(std::map<std::string, std::string> params) {
     std::string path    = params["path"];
     std::string newName = params["name"];
 
-    if (newName.length() > 11) return "Error: El nuevo nombre es demasiado largo (máximo 11 caracteres)\n";
     if (path == "/") return "Error: No se puede renombrar la carpeta raíz\n";
 
     std::fstream disk(currentSession.diskPath, std::ios::binary | std::ios::in | std::ios::out);
@@ -23,31 +22,32 @@ std::string cmdRename(std::map<std::string, std::string> params) {
     SuperBloque sb;
     if (!ffReadSuperblock(disk, sb)) { disk.close(); return "Error: No se pudo leer el superbloque\n"; }
 
-    // 1. Resolver ruta del objetivo
-    int targetInodeIdx = ffResolvePath(disk, sb, path, false, currentSession.uid, currentSession.gid);
-    if (targetInodeIdx < 0) {
-        disk.close();
-        if (targetInodeIdx == -2) return "Error: Permisos insuficientes para navegar la ruta\n";
-        return "Error: No se encontró el archivo o carpeta en '" + path + "'\n";
+    // 1. Obtener el directorio padre a partir del path
+    auto parts = ffSplitPath(path);
+    if (parts.empty()) return "Error: Ruta inválida\n";
+    std::string oldName = parts.back();
+    std::string parentPath = "/";
+    for(size_t i = 0; i + 1 < parts.size(); i++) {
+        parentPath += parts[i] + (i + 2 < parts.size() ? "/" : "");
     }
 
-    // 2. Validar permisos sobre el objetivo
+    int parentInodeIdx = 0;
+    if (parts.size() > 1) {
+        parentInodeIdx = ffResolvePath(disk, sb, parentPath, false, currentSession.uid, currentSession.gid);
+    }
+    if (parentInodeIdx < 0) { disk.close(); return "Error: No se encontró el directorio padre\n"; }
+
+    // 2. Buscar el inode del archivo dentro del directorio padre
+    int targetInodeIdx = ffLookup(disk, sb, parentInodeIdx, oldName);
+    if (targetInodeIdx == -1) { disk.close(); return "Error: El archivo '" + oldName + "' no existe\n"; }
+
+    // 3. Verificar permisos de escritura sobre el archivo
     Inode targetInode{};
     ffReadInode(disk, sb, targetInodeIdx, targetInode);
     if (!ffHasPermission(targetInode, currentSession.uid, currentSession.gid, 'w')) {
         disk.close();
         return "Error: No tiene permisos de escritura sobre '" + path + "'\n";
     }
-
-    // 3. Obtener inodo del padre
-    auto parts = ffSplitPath(path);
-    std::string oldName = parts.back();
-    parts.pop_back();
-    std::string parentPath = "/";
-    for(const auto& p : parts) parentPath += p + "/";
-
-    int parentInodeIdx = ffResolvePath(disk, sb, parentPath, false, currentSession.uid, currentSession.gid);
-    if (parentInodeIdx < 0) { disk.close(); return "Error: No se pudo encontrar el directorio padre\n"; }
 
     // 4. Verificar que el nuevo nombre no exista ya
     if (ffLookup(disk, sb, parentInodeIdx, newName) != -1) {
@@ -69,9 +69,10 @@ std::string cmdRename(std::map<std::string, std::string> params) {
             if (fb.content[j].Inodo == targetInodeIdx) {
                 // Verificar que el nombre coincide con el que queremos cambiar (por si acaso hay hardlinks o algo raro)
                 std::string entryName(fb.content[j].Name, strnlen(fb.content[j].Name, 12));
-                if (entryName == oldName) {
+                std::string searchName = oldName.length() > 12 ? oldName.substr(0, 12) : oldName;
+                if (entryName == searchName) {
                     memset(fb.content[j].Name, 0, 12);
-                    strncpy(fb.content[j].Name, newName.c_str(), 11);
+                    strncpy(fb.content[j].Name, newName.c_str(), 12);
                     ffWriteFolderBlock(disk, sb, parentInode.Block[i], fb);
                     found = true;
                     break;

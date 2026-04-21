@@ -117,9 +117,9 @@ std::string cmdMkdir(std::map<std::string, std::string> params) {
         newFb.content[j].Inodo = -1;
         memset(newFb.content[j].Name, 0, 12);
     }
-    strncpy(newFb.content[0].Name, ".",  11);
+    strncpy(newFb.content[0].Name, ".",  12);
     newFb.content[0].Inodo = newInodeIdx;
-    strncpy(newFb.content[1].Name, "..", 11);
+    strncpy(newFb.content[1].Name, "..", 12);
     newFb.content[1].Inodo = parentInodeIdx;
     ffWriteFolderBlock(disk, sb, newBlockIdx, newFb);
 

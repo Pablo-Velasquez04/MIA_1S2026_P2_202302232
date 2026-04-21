@@ -3,6 +3,7 @@
 #include "../Mounting/Mounting.h"
 #include "../FilesFolders/FilesFolders.h"
 #include <iostream>
+#include <vector>
 
 std::string cmdLoss(std::map<std::string, std::string> params) {
     std::string id = params.count("id") ? params["id"] : "";
@@ -32,28 +33,61 @@ std::string cmdLoss(std::map<std::string, std::string> params) {
 
     char zero = '\0';
 
+    std::vector<int> protectedInodes = {0, 1};
+    std::vector<long> protectedBlocks;
+    
+    for (int i : protectedInodes) {
+        Inode in{};
+        long pos = sb.InodeStart + i * sb.InodeSize;
+        disk.seekg(pos);
+        if (disk.read((char*)&in, sizeof(Inode))) {
+            for(int j=0; j<15; j++) {
+                if (in.Block[j] != -1) {
+                    protectedBlocks.push_back(in.Block[j]);
+                }
+            }
+        }
+    }
+
+    auto isProtectedInode = [&](int idx) {
+        for (int p : protectedInodes) if (p == idx) return true;
+        return false;
+    };
+    auto isProtectedBlock = [&](long idx) {
+        for (long p : protectedBlocks) if (p == idx) return true;
+        return false;
+    };
+
     // 1. Limpiar bitmap de inodos
-    disk.seekp(sb.BmInodeStart, std::ios::beg);
     for (int i = 0; i < sb.InodesCount; i++) {
-        disk.write(&zero, 1);
+        if (!isProtectedInode(i)) {
+            disk.seekp(sb.BmInodeStart + i, std::ios::beg);
+            disk.write(&zero, 1);
+        }
     }
 
     // 2. Limpiar bitmap de bloques
-    disk.seekp(sb.BmBlockStart, std::ios::beg);
     for (int i = 0; i < sb.BlocksCount; i++) {
-        disk.write(&zero, 1);
+        if (!isProtectedBlock(i)) {
+            disk.seekp(sb.BmBlockStart + i, std::ios::beg);
+            disk.write(&zero, 1);
+        }
     }
 
     // 3. Limpiar área de inodos
-    disk.seekp(sb.InodeStart, std::ios::beg);
-    for (int i = 0; i < sb.InodesCount * sb.InodeSize; i++) {
-        disk.write(&zero, 1);
+    for (int i = 0; i < sb.InodesCount; i++) {
+        if (!isProtectedInode(i)) {
+            disk.seekp(sb.InodeStart + i * sb.InodeSize, std::ios::beg);
+            for(int b = 0; b < sb.InodeSize; b++) disk.write(&zero, 1);
+        }
     }
 
     // 4. Limpiar área de bloques
-    disk.seekp(sb.BlockStart, std::ios::beg);
-    for (long i = 0; i < (long)sb.BlocksCount * sb.BlockSize; i++) {
-        disk.write(&zero, 1);
+    for (long i = 0; i < sb.BlocksCount; i++) {
+        if (!isProtectedBlock(i)) {
+            disk.seekp(sb.BlockStart + i * sb.BlockSize, std::ios::beg);
+            for(int b = 0; b < sb.BlockSize; b++) disk.write(&zero, 1);
+        }
     }
 
     disk.close();

@@ -145,9 +145,9 @@ int ffLookup(std::fstream& disk, const SuperBloque& sb,
         for (int j = 0; j < 4; j++) {
             if (fb.content[j].Inodo == -1) continue;
             //Comparar nombre (null-terminated)
-            std::string entryName(fb.content[j].Name,
-                strnlen(fb.content[j].Name, 12));
-            if (entryName == name)
+            std::string entryName(fb.content[j].Name, strnlen(fb.content[j].Name, 12));
+            std::string searchName = name.length() > 12 ? name.substr(0, 12) : name;
+            if (entryName == searchName)
                 return fb.content[j].Inodo;
         }
     }
@@ -171,7 +171,7 @@ bool ffAddEntry(std::fstream& disk, SuperBloque& sb,
             if (fb.content[j].Inodo == -1) {
                 //Espacio libre encontrado
                 memset(fb.content[j].Name, 0, 12);
-                strncpy(fb.content[j].Name, name.c_str(), 11);
+                strncpy(fb.content[j].Name, name.c_str(), 12);
                 fb.content[j].Inodo = inodeIdx;
                 ffWriteFolderBlock(disk, sb, dirInode.Block[i], fb);
 
@@ -202,7 +202,7 @@ bool ffAddEntry(std::fstream& disk, SuperBloque& sb,
         memset(newFb.content[j].Name, 0, 12);
     }
     memset(newFb.content[0].Name, 0, 12);
-    strncpy(newFb.content[0].Name, name.c_str(), 11);
+    strncpy(newFb.content[0].Name, name.c_str(), 12);
     newFb.content[0].Inodo = inodeIdx;
 
     ffWriteFolderBlock(disk, sb, newBlock, newFb);
@@ -268,9 +268,9 @@ int ffResolvePath(std::fstream& disk, SuperBloque& sb,
                 newFb.content[j].Inodo = -1;
                 memset(newFb.content[j].Name, 0, 12);
             }
-            strncpy(newFb.content[0].Name, ".",  11);
+            strncpy(newFb.content[0].Name, ".",  12);
             newFb.content[0].Inodo = newInodeIdx;
-            strncpy(newFb.content[1].Name, "..", 11);
+            strncpy(newFb.content[1].Name, "..", 12);
             newFb.content[1].Inodo = currentInodeIdx;
             ffWriteFolderBlock(disk, sb, newBlockIdx, newFb);
 
@@ -333,7 +333,8 @@ bool ffRemoveEntry(std::fstream& disk, SuperBloque& sb,
         for (int j = 0; j < 4; j++) {
             if (fb.content[j].Inodo != -1) {
                 std::string entryName(fb.content[j].Name, strnlen(fb.content[j].Name, 12));
-                if (entryName == name) {
+                std::string searchName = name.length() > 12 ? name.substr(0, 12) : name;
+                if (entryName == searchName) {
                     fb.content[j].Inodo = -1;
                     memset(fb.content[j].Name, 0, 12);
                     ffWriteFolderBlock(disk, sb, dirInode.Block[i], fb);
