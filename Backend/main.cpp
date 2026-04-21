@@ -5,6 +5,9 @@
 #include <fstream>
 #include <filesystem>
 #include <nlohmann/json.hpp> 
+#include "Estructuras/Structs.h"
+#include "Mounting/Mounting.h"
+#include "FilesFolders/FilesFolders.h"
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -32,6 +35,249 @@ int main() {
         setCORS(res);
         json body = {{"status", "ok"}, {"message", "ExtreamFS backend running"}};
         res.set_content(body.dump(), "application/json");
+    });
+
+    // --- EXPLORER ENDPOINTS ---
+
+    // GET /api/explorer/disks
+    server.Get("/api/explorer/disks", [&setCORS](const httplib::Request&, httplib::Response& res) {
+        setCORS(res);
+        try {
+            json response = json::array();
+            auto mounted = getMountedPartitions();
+            std::map<std::string, int> diskCounts;
+            for (const auto& mp : mounted) {
+                diskCounts[mp.Path]++;
+            }
+            
+            for (const auto& kv : diskCounts) {
+                std::string path = kv.first;
+                std::fstream file(path, std::ios::in | std::ios::binary);
+                if (!file.is_open()) continue;
+                
+                MBR mbr;
+                file.seekg(0, std::ios::beg);
+                file.read(reinterpret_cast<char*>(&mbr), sizeof(MBR));
+                file.close();
+                
+                std::string name = fs::path(path).filename().string();
+                
+                response.push_back({
+                    {"path", path},
+                    {"name", name},
+                    {"size", mbr.MbrSize},
+                    {"fit", std::string(1, mbr.Fit)},
+                    {"mountedCount", kv.second}
+                });
+            }
+            res.set_content(response.dump(), "application/json");
+        } catch (const std::exception& e) {
+            json error = {{"success", false}, {"error", e.what()}};
+            res.set_content(error.dump(), "application/json");
+            res.status = 500;
+        }
+    });
+
+    // GET /api/explorer/partitions
+    server.Get("/api/explorer/partitions", [&setCORS](const httplib::Request& req, httplib::Response& res) {
+        setCORS(res);
+        try {
+            if (!req.has_param("diskPath")) {
+                res.status = 400; res.set_content(json({{"error", "Missing diskPath"}}).dump(), "application/json"); return;
+            }
+            std::string diskPath = req.get_param_value("diskPath");
+            
+            std::fstream file(diskPath, std::ios::in | std::ios::binary);
+            if (!file.is_open()) {
+                res.status = 404; res.set_content(json({{"error", "Disk file not found"}}).dump(), "application/json"); return;
+            }
+            
+            MBR mbr;
+            file.read(reinterpret_cast<char*>(&mbr), sizeof(MBR));
+            
+            auto mounted = getMountedPartitions();
+            auto isMounted = [&](const std::string& name) -> std::string {
+                for (const auto& mp : mounted) {
+                    if (mp.Path == diskPath && std::string(mp.Name) == name) return mp.Id;
+                }
+                return "";
+            };
+            
+            json partitions = json::array();
+            for (int i = 0; i < 4; i++) {
+                if (mbr.Partitions[i].Size > 0) {
+                    std::string pName(mbr.Partitions[i].Name);
+                    std::string id = isMounted(pName);
+                    
+                    partitions.push_back({
+                        {"name", pName},
+                        {"size", mbr.Partitions[i].Size},
+                        {"type", std::string(1, mbr.Partitions[i].Type)},
+                        {"fit", std::string(1, mbr.Partitions[i].Fit)},
+                        {"status", id.empty() ? "Unmounted" : "Mounted"},
+                        {"id", id}
+                    });
+                    
+                    if (mbr.Partitions[i].Type == 'E') {
+                        int ebrStart = mbr.Partitions[i].Start;
+                        while (ebrStart != -1) {
+                            EBR ebr;
+                            file.seekg(ebrStart, std::ios::beg);
+                            file.read(reinterpret_cast<char*>(&ebr), sizeof(EBR));
+                            if (ebr.Size > 0 && ebr.Mount != 0 && strnlen(ebr.Name, 16) > 0) {
+                                std::string logName(ebr.Name);
+                                std::string logId = isMounted(logName);
+                                partitions.push_back({
+                                    {"name", logName},
+                                    {"size", ebr.Size},
+                                    {"type", "L"},
+                                    {"fit", std::string(1, ebr.Fit)},
+                                    {"status", logId.empty() ? "Unmounted" : "Mounted"},
+                                    {"id", logId}
+                                });
+                            }
+                            if (ebr.Next == -1 || ebr.Next == 0) break;
+                            ebrStart = ebr.Next;
+                        }
+                    }
+                }
+            }
+            file.close();
+            res.set_content(partitions.dump(), "application/json");
+        } catch (const std::exception& e) {
+            json error = {{"error", e.what()}};
+            res.set_content(error.dump(), "application/json");
+            res.status = 500;
+        }
+    });
+
+    // GET /api/explorer/dir
+    server.Get("/api/explorer/dir", [&setCORS](const httplib::Request& req, httplib::Response& res) {
+        setCORS(res);
+        try {
+            std::string id = req.has_param("id") ? req.get_param_value("id") : "";
+            std::string reqPath = req.has_param("path") ? req.get_param_value("path") : "";
+            if (id.empty() || reqPath.empty()) { res.status = 400; return; }
+            
+            auto mounted = getMountedPartitions();
+            MountedPartition targetMp;
+            bool found = false;
+            for (const auto& mp : mounted) {
+                if (mp.Id == id) { targetMp = mp; found = true; break; }
+            }
+            if (!found) { res.status = 404; return; }
+            
+            std::fstream disk(targetMp.Path, std::ios::in | std::ios::binary);
+            if (!disk.is_open()) { res.status = 500; return; }
+            
+            SuperBloque sb;
+            long sbStart = targetMp.Start;
+            if (targetMp.Type == 'L') sbStart += sizeof(EBR);
+            
+            disk.seekg(sbStart, std::ios::beg);
+            disk.read(reinterpret_cast<char*>(&sb), sizeof(SuperBloque));
+            
+            if (sb.Magic != 0xEF53) { disk.close(); res.status = 400; return; }
+            
+            // Ignoramos validacion de sesion (pasando root = 1) porque es solo lectura visual
+            int inodeIdx = ffResolvePath(disk, sb, reqPath, false, 1, 1);
+            if (inodeIdx < 0) { disk.close(); res.status = 404; return; }
+            
+            Inode dirInode;
+            ffReadInode(disk, sb, inodeIdx, dirInode);
+            if (dirInode.Type != '0') { disk.close(); res.status = 400; return; }
+            
+            json contents = json::array();
+            auto processEntry = [&](int blockIdx) {
+                FolderBlock fb;
+                if (!ffReadFolderBlock(disk, sb, blockIdx, fb)) return;
+                for (int e = 0; e < 4; e++) {
+                    if (fb.content[e].Inodo != -1) {
+                        std::string entryName(fb.content[e].Name, strnlen(fb.content[e].Name, 12));
+                        if (entryName == "." || entryName == "..") continue;
+                        
+                        Inode child;
+                        if (ffReadInode(disk, sb, fb.content[e].Inodo, child)) {
+                            std::string perms(child.Perm, 3);
+                            contents.push_back({
+                                {"name", entryName},
+                                {"type", child.Type == '1' ? "file" : "folder"},
+                                {"perms", perms},
+                                {"inodo", fb.content[e].Inodo},
+                                {"size", child.Size},
+                                {"ctime", child.Ctime}
+                            });
+                        }
+                    }
+                }
+            };
+            
+            // Usando solo lectura basica, limitamos a 12 de momento u obtener también indirectos
+            for (int i = 0; i < 12; i++) {
+                if (dirInode.Block[i] != -1) processEntry(dirInode.Block[i]);
+            }
+            
+            disk.close();
+            res.set_content(contents.dump(), "application/json");
+        } catch (const std::exception& e) {
+            json error = {{"error", e.what()}};
+            res.set_content(error.dump(), "application/json");
+            res.status = 500;
+        }
+    });
+
+    // GET /api/explorer/file
+    server.Get("/api/explorer/file", [&setCORS](const httplib::Request& req, httplib::Response& res) {
+        setCORS(res);
+        try {
+            std::string id = req.has_param("id") ? req.get_param_value("id") : "";
+            std::string reqPath = req.has_param("path") ? req.get_param_value("path") : "";
+            if (id.empty() || reqPath.empty()) { res.status = 400; return; }
+            
+            auto mounted = getMountedPartitions();
+            MountedPartition targetMp;
+            bool found = false;
+            for (const auto& mp : mounted) {
+                if (mp.Id == id) { targetMp = mp; found = true; break; }
+            }
+            if (!found) { res.status = 404; return; }
+            
+            std::fstream disk(targetMp.Path, std::ios::in | std::ios::binary);
+            if (!disk.is_open()) { res.status = 500; return; }
+            
+            SuperBloque sb;
+            long sbStart = targetMp.Start;
+            if (targetMp.Type == 'L') sbStart += sizeof(EBR);
+            
+            disk.seekg(sbStart, std::ios::beg);
+            disk.read(reinterpret_cast<char*>(&sb), sizeof(SuperBloque));
+            
+            if (sb.Magic != 0xEF53) { disk.close(); res.status = 400; return; }
+            
+            int inodeIdx = ffResolvePath(disk, sb, reqPath, false, 1, 1);
+            if (inodeIdx < 0) { disk.close(); res.status = 404; return; }
+            
+            Inode fileInode;
+            ffReadInode(disk, sb, inodeIdx, fileInode);
+            if (fileInode.Type != '1') { disk.close(); res.status = 400; return; }
+            
+            std::string contentTotal = "";
+            for (int i = 0; i < 12; i++) {
+                if (fileInode.Block[i] != -1) {
+                    FileBlock fb;
+                    if (ffReadFileBlock(disk, sb, fileInode.Block[i], fb)) {
+                        contentTotal += std::string(fb.content, strnlen(fb.content, 64));
+                    }
+                }
+            }
+            
+            disk.close();
+            res.set_content(json({{"content", contentTotal}}).dump(), "application/json");
+        } catch (const std::exception& e) {
+            json error = {{"error", e.what()}};
+            res.set_content(error.dump(), "application/json");
+            res.status = 500;
+        }
     });
 
     //POST /api/execute

@@ -114,3 +114,72 @@ export async function checkConnection(): Promise<boolean> {
     return false;
   }
 }
+
+// --- EXPLORER API ---
+
+export interface ExplorerDisk {
+  path: string;
+  name: string;
+  size: number;
+  fit: string;
+  mountedCount: number;
+}
+
+export interface ExplorerPartition {
+  name: string;
+  size: number;
+  type: string;
+  fit: string;
+  status: string;
+  id: string;
+}
+
+export interface ExplorerFile {
+  name: string;
+  type: "file" | "folder";
+  perms: string;
+  inodo: number;
+  size: number;
+  ctime: number;
+}
+
+export async function getExplorerDisks(): Promise<ExplorerDisk[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/explorer/disks?t=${Date.now()}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function getExplorerPartitions(diskPath: string): Promise<ExplorerPartition[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/explorer/partitions?diskPath=${encodeURIComponent(diskPath)}&t=${Date.now()}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function getExplorerDir(id: string, path: string): Promise<ExplorerFile[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/explorer/dir?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}&t=${Date.now()}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function getExplorerFileContent(id: string, path: string): Promise<string> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/explorer/file?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}&t=${Date.now()}`);
+    if (!res.ok) return "Error leyendo el archivo";
+    const data = await res.json();
+    return data.content || "";
+  } catch {
+    return "Error de conexión";
+  }
+}

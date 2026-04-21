@@ -8,6 +8,7 @@ import { ReportViewer, Report } from "@/components/report-viewer";
 import { ConnectionStatus } from "@/components/connection-status";
 import { CommandReference } from "@/components/command-reference";
 import { JournalingView, JournalEntry } from "@/components/journaling-view";
+import { FileSystemVisualizer } from "@/components/file-visualizer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -19,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { executeCommand, getReportUrl } from "@/lib/api";
-import { HardDrive, Github, BookOpen } from "lucide-react";
+import { HardDrive, Github, BookOpen, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -40,9 +41,11 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState("");
   const [loggedPartitionId, setLoggedPartitionId] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const saved = window.localStorage.getItem("extreamfs-login");
     if (saved) {
       try {
@@ -56,17 +59,12 @@ export default function Home() {
     }
   }, []);
 
-  // Conecta el formulario al comando `login` del backend
   const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoginError("");
 
-    const id = partitionId.trim();
-    const user = username.trim();
-    const pass = password.trim();
-
-    if (!id || !user || !pass) {
-      setLoginError("Todos los campos son obligatorios.");
+    if (!partitionId.trim() || !username.trim() || !password.trim()) {
+      setLoginError("Todos los campos son obligatorios para verificar el acceso.");
       return;
     }
 
@@ -76,46 +74,46 @@ export default function Home() {
     }
 
     setIsLoginLoading(true);
+
     try {
-      const cmd = `login -user=${user} -pass=${pass} -id=${id}`;
-      const response = await executeCommand(cmd);
+      const command = `login -user=${username.trim()} -pass=${password.trim()} -id=${partitionId.trim()}`;
+      const response = await executeCommand(command);
 
       if (response.success) {
-        // Login exitoso
         if (rememberUser) {
           window.localStorage.setItem(
             "extreamfs-login",
-            JSON.stringify({ partitionId: id, username: user })
+            JSON.stringify({ partitionId: partitionId.trim(), username: username.trim() })
           );
         } else {
           window.localStorage.removeItem("extreamfs-login");
         }
-        setLoggedInUser(user);
-        setLoggedPartitionId(id);
+
+        setLoggedInUser(username.trim());
+        setLoggedPartitionId(partitionId.trim());
         setIsLoggedIn(true);
-        setLoginOpen(false);
         setPassword("");
-        addOutputLine("success", `Login exitoso como '${user}' en partición '${id}'.`);
+        setLoginOpen(false);
+        addOutputLine("success", `Login correcto para el usuario '${username.trim()}' en partición '${partitionId.trim()}'`);
       } else {
-        // Error del backend → mostrarlo en el dialog
-        const errorText = (response.error || response.output || "Error desconocido")
-          .replace(/^Error:\s*/i, "")
-          .trim();
+        const errorText = (response.error || response.output || "Datos incorrectos.").replace(/^Error:\s*/i, "");
         setLoginError(errorText);
+        addOutputLine("error", `Login fallido: ${errorText}`);
       }
-    } catch (e) {
-      setLoginError(`Error de conexión con el backend: ${e instanceof Error ? e.message : String(e)}`);
+    } catch (error) {
+      setLoginError(`Error de conexión con el backend: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoginLoading(false);
     }
   };
 
-  // Llama al comando `logout` del backend y limpia el estado local
   const handleLogout = async () => {
     if (isConnected) {
       try {
         await executeCommand("logout");
-      } catch { /* ignorar errores de red al cerrar sesión */ }
+      } catch {
+        // Ignorar errores de red al cerrar sesión, la sesión local se elimina de todas formas.
+      }
     }
     setIsLoggedIn(false);
     setLoggedInUser("");
@@ -267,6 +265,10 @@ export default function Home() {
     }
 
     setIsLoading(false);
+    // Disparar actualización del visualizador
+    if (isLoggedIn) {
+      setRefreshTrigger(prev => prev + 1);
+    }
   };
 
   const handleClearOutput = () => {
@@ -285,6 +287,8 @@ export default function Home() {
     setJournalEntries([]);
     addOutputLine("info", "Backend conectado. Estado del frontend limpiado. Particiones montadas y journaling reiniciados.");
   };
+
+
 
   return (
     <div className="min-h-screen bg-transparent">
@@ -405,7 +409,7 @@ export default function Home() {
           <div className="rounded-lg border border-foreground/10 bg-foreground/5 p-4 text-sm text-foreground/90 shadow-sm">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="font-semibold">Visualizador de Sistemas de archivos habilitado</p>
+                <p className="font-semibold">Sesión de usuario activa</p>
                 <p className="text-sm text-muted-foreground">
                   Conectado como <span className="font-medium">{loggedInUser}</span> en partición <span className="font-medium">{loggedPartitionId}</span>.
                 </p>
@@ -416,51 +420,79 @@ export default function Home() {
             </div>
           </div>
         ) : null}
-        {/* Top Section - Editor & Console */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 items-stretch">
-          {/* Left Column - Command Editor */}
-          <div className="w-full h-[450px]">
-            <CommandEditor onExecute={handleExecute} isLoading={isLoading} />
-          </div>
 
-          {/* Right Column - Output Console */}
-          <div className="w-full h-[450px]">
-            <OutputConsole output={output} onClear={handleClearOutput} />
-          </div>
-        </div>
+        {/* Main Tabs - Terminal and File Explorer */}
+        <Tabs defaultValue="terminal" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+            <TabsTrigger value="terminal" className="gap-1">
+              <HardDrive className="h-4 w-4" />
+              Terminal
+            </TabsTrigger>
+            {isLoggedIn ? (
+              <TabsTrigger value="visualizador" className="gap-1">
+                <Folder className="h-4 w-4" />
+                Visualizador
+              </TabsTrigger>
+            ) : null}
+          </TabsList>
 
-        {/* Bottom Section - Info Panels */}
-        <div className="w-full">
-          <Tabs defaultValue="partitions" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 lg:w-[450px]">
-              <TabsTrigger value="partitions" className="gap-1">
-                <HardDrive className="h-4 w-4" />
-                Particiones
-              </TabsTrigger>
-              <TabsTrigger value="reference" className="gap-1">
-                <BookOpen className="h-4 w-4" />
-                Referencia
-              </TabsTrigger>
-              <TabsTrigger value="journaling" className="gap-1">
-                <HardDrive className="h-4 w-4" />
-                Journaling
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="partitions" className="mt-4 space-y-4">
-              <MountedPartitions partitions={partitions} />
-              <ReportViewer
-                reports={reports}
-                onRemoveReport={handleRemoveReport}
-              />
+          {/* Terminal Tab */}
+          <TabsContent value="terminal" className="mt-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 items-stretch">
+              {/* Left Column - Command Editor */}
+              <div className="w-full h-[450px]">
+                <CommandEditor onExecute={handleExecute} isLoading={isLoading} />
+              </div>
+
+              {/* Right Column - Output Console */}
+              <div className="w-full h-[450px]">
+                <OutputConsole output={output} onClear={handleClearOutput} />
+              </div>
+            </div>
+
+            {/* Bottom Section - Info Panels for Terminal Tab */}
+            <div className="w-full">
+              <Tabs defaultValue="partitions" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 lg:w-[580px]">
+                  <TabsTrigger value="partitions" className="gap-1">
+                    <HardDrive className="h-4 w-4" />
+                    Particiones
+                  </TabsTrigger>
+                  <TabsTrigger value="reference" className="gap-1">
+                    <BookOpen className="h-4 w-4" />
+                    Referencia
+                  </TabsTrigger>
+                  <TabsTrigger value="journaling" className="gap-1">
+                    <HardDrive className="h-4 w-4" />
+                    Journaling
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="partitions" className="mt-4 space-y-4">
+                  <MountedPartitions partitions={partitions} />
+                  <ReportViewer
+                    reports={reports}
+                    onRemoveReport={handleRemoveReport}
+                  />
+                </TabsContent>
+                <TabsContent value="reference" className="mt-4">
+                  <CommandReference />
+                </TabsContent>
+                <TabsContent value="journaling" className="mt-4">
+                  <JournalingView entries={journalEntries} />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </TabsContent>
+
+          {/* Visualizador Tab - Only when logged in */}
+          {isLoggedIn ? (
+            <TabsContent value="visualizador" className="mt-6">
+              <div className="h-[650px]">
+                <FileSystemVisualizer refreshTrigger={refreshTrigger} />
+              </div>
             </TabsContent>
-            <TabsContent value="reference" className="mt-4">
-              <CommandReference />
-            </TabsContent>
-            <TabsContent value="journaling" className="mt-4">
-              <JournalingView entries={journalEntries} />
-            </TabsContent>
-          </Tabs>
-        </div>
+          ) : null}
+        </Tabs>
       </main>
 
       {/* Footer */}
