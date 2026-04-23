@@ -51,10 +51,10 @@ El plan cubre un período de **12 meses** posteriores a la entrega final (marzo 
 - Generación de reportes (Graphviz .jpg/.txt).  
 - Comandos completos (mkdisk, fdisk, mkfs, login, mkusr, cat, etc.).  
 - Archivos binarios y estructuras en memoria RAM (MOUNT).  
+- Despliegue en la nube: Dicha página web deberá ser desplegada mediante el servicio de bucket S3 de AWS, dicho backend deberá ser desplegado en una instancia EC2 de AWS, y se gestionarán los accesos y permisos mediante IAM.
 
 **Excluido:**  
 - Hardware físico real.  
-- Despliegue en servidores en la nube (corresponde al Proyecto 2).  
 - Soporte a múltiples usuarios simultáneos (fuera del alcance del Proyecto 1).
 
 ### 4. Tipos de Mantenimiento y Estrategia  
@@ -102,8 +102,9 @@ El plan cubre un período de **12 meses** posteriores a la entrega final (marzo 
 ### 8. Recursos Necesarios  
 - **Hardware:** Laptop personal (mínimo 8 GB RAM, 50 GB disco).  
 - **Software:** Gratuito (VS Code, CMake, Angular/React, Graphviz, Git).  
+- **Infraestructura Cloud (AWS):** Bucket S3 (frontend), Instancia EC2 (backend) e IAM (gestión de identidades y accesos).
 - **Tiempo estimado:** 8-12 horas/mes (2-3 horas/semana).  
-- **Costo estimado:** Q 0 (todo open-source y local).
+- **Costo estimado:** Q 0 (aprovechando la capa gratuita de AWS, herramientas open-source y local).
 
 ### 9. Métricas de Monitoreo y Éxito  
 - **Disponibilidad:** ≥ 98 % de comandos ejecutados sin error.  
