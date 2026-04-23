@@ -120,8 +120,8 @@ La interfaz está dividida en secciones claras y modernas:
 
 - **Referencia**: Lista rápida de comandos (recomendado usarla siempre).
 
-<img src="Imagenes/Referencias.png" width="650">
----
+## <img src="Imagenes/Referencias.png" width="650">
+
 <img src="Imagenes/Referencias2.png" width="650">
 
 #### 4.6 Estado de Conexión
@@ -131,6 +131,7 @@ La interfaz está dividida en secciones claras y modernas:
 <img src="Imagenes/EstadoConexion.png" width="250">
 
 #### 4.7 Botón a GitHub
+
 - Ubicado en la barra superior derecha, este botón nos redirige automaticamente al repositorio de este proyecto en GitHub
 
 <img src="Imagenes/BotonGit.png" width="150">
@@ -157,35 +158,35 @@ Los comandos no distinguen mayúsculas/minúsculas. Parámetros en cualquier ord
 
 #### 6.1 Tabla Resumen de Comandos
 
-| Comando | Descripción | Ejemplo de Uso |
-| :--- | :--- | :--- |
-| **mkdisk** | Crea un nuevo disco virtual (.mia). | `mkdisk -size=50 -unit=M -path=/home/disco1.mia` |
-| **rmdisk** | Elimina un disco virtual existente. | `rmdisk -path=/home/disco1.mia` |
-| **fdisk** | Gestiona (crea, borra, modifica) particiones (MBR). | `fdisk -size=10 -unit=M -path=/home/disco1.mia -name=Part1` |
-| **mount** | Monta una partición en la memoria RAM. | `mount -path=/home/disco1.mia -name=Part1` |
-| **mounted** | Lista todas las particiones actualmente montadas. | `mounted` |
-| **mkfs** | Formatea una partición montada con el sistema de archivos (EXT2). | `mkfs -id=341A` |
-| **login** | Inicia sesión de usuario en una partición montada. | `login -user=root -pass=123 -id=341A` |
-| **logout** | Cierra la sesión del usuario actual. | `logout` |
-| **mkgrp** | Crea un nuevo grupo de usuarios (Requiere root). | `mkgrp -name=estudiantes` |
-| **rmgrp** | Elimina un grupo de usuarios (Requiere root). | `rmgrp -name=estudiantes` |
-| **mkusr** | Crea un nuevo usuario asignado a un grupo (Requiere root). | `mkusr -user=pablo -pass=1234 -grp=estudiantes` |
-| **rmusr** | Elimina un usuario existente (Requiere root). | `rmusr -user=pablo` |
-| **chgrp** | Cambia de grupo a un usuario existente (Requiere root). | `chgrp -user=pablo -grp=invitados` |
-| **mkfile** | Crea un archivo de texto dentro del sistema simulado. | `mkfile -path=/home/user/docs/a.txt -r -size=15` |
-| **mkdir** | Crea un directorio jerárquico. | `mkdir -path=/home/user/docs/usac -p` |
-| **cat** | Muestra en consola el contenido de uno o más archivos. | `cat -file1=/home/user/docs/a.txt` |
-| **remove** | Elimina archivos o carpetas de forma recursiva. | `remove -path=/home/archivo.txt` |
-| **rename** | Renombra un archivo o carpeta. | `rename -path=/home/viejo.txt -name=nuevo.txt` |
-| **copy** | Duplica archivos o carpetas recursivamente. | `copy -path=/home/original.txt -destino=/home/backup.txt` |
-| **move** | Traslada archivos o carpetas a otra ubicación. | `move -path=/home/archivo.txt -destino=/documentos/` |
-| **find** | Busca archivos por patrón de nombre (regex). | `find -path=/ -name=".*\.txt"` |
-| **chmod** | Modifica los permisos de archivos/carpetas (UGO). | `chmod -path=/home/archivo.txt -ugo=755` |
-| **chown** | Cambia el propietario de un archivo o carpeta. | `chown -path=/home/archivo.txt -user=otrouser` |
-| **reset** | Reinicia el estado global del simulador. | `execute` |
-| **journaling** | Muestra el registro de transacciones (EXT3). | `journaling -id=341A` |
-| **loss** | Simula corrupción de datos en la partición. | `loss -id=341A -percentage=10` |
-| **rep** | Genera reportes gráficos del disco y archivos. | `rep -id=341A -path=/home/reports/tree.jpg -name=tree` |
+| Comando        | Descripción                                                       | Ejemplo de Uso                                              |
+| :------------- | :---------------------------------------------------------------- | :---------------------------------------------------------- |
+| **mkdisk**     | Crea un nuevo disco virtual (.mia).                               | `mkdisk -size=50 -unit=M -path=/home/disco1.mia`            |
+| **rmdisk**     | Elimina un disco virtual existente.                               | `rmdisk -path=/home/disco1.mia`                             |
+| **fdisk**      | Gestiona (crea, borra, modifica) particiones (MBR).               | `fdisk -size=10 -unit=M -path=/home/disco1.mia -name=Part1` |
+| **mount**      | Monta una partición en la memoria RAM.                            | `mount -path=/home/disco1.mia -name=Part1`                  |
+| **mounted**    | Lista todas las particiones actualmente montadas.                 | `mounted`                                                   |
+| **mkfs**       | Formatea una partición montada con el sistema de archivos (EXT2). | `mkfs -id=341A`                                             |
+| **login**      | Inicia sesión de usuario en una partición montada.                | `login -user=root -pass=123 -id=341A`                       |
+| **logout**     | Cierra la sesión del usuario actual.                              | `logout`                                                    |
+| **mkgrp**      | Crea un nuevo grupo de usuarios (Requiere root).                  | `mkgrp -name=estudiantes`                                   |
+| **rmgrp**      | Elimina un grupo de usuarios (Requiere root).                     | `rmgrp -name=estudiantes`                                   |
+| **mkusr**      | Crea un nuevo usuario asignado a un grupo (Requiere root).        | `mkusr -user=pablo -pass=1234 -grp=estudiantes`             |
+| **rmusr**      | Elimina un usuario existente (Requiere root).                     | `rmusr -user=pablo`                                         |
+| **chgrp**      | Cambia de grupo a un usuario existente (Requiere root).           | `chgrp -user=pablo -grp=invitados`                          |
+| **mkfile**     | Crea un archivo de texto dentro del sistema simulado.             | `mkfile -path=/home/user/docs/a.txt -r -size=15`            |
+| **mkdir**      | Crea un directorio jerárquico.                                    | `mkdir -path=/home/user/docs/usac -p`                       |
+| **cat**        | Muestra en consola el contenido de uno o más archivos.            | `cat -file1=/home/user/docs/a.txt`                          |
+| **remove**     | Elimina archivos o carpetas de forma recursiva.                   | `remove -path=/home/archivo.txt`                            |
+| **rename**     | Renombra un archivo o carpeta.                                    | `rename -path=/home/viejo.txt -name=nuevo.txt`              |
+| **copy**       | Duplica archivos o carpetas recursivamente.                       | `copy -path=/home/original.txt -destino=/home/backup.txt`   |
+| **move**       | Traslada archivos o carpetas a otra ubicación.                    | `move -path=/home/archivo.txt -destino=/documentos/`        |
+| **find**       | Busca archivos por patrón de nombre (regex).                      | `find -path=/ -name=".*\.txt"`                              |
+| **chmod**      | Modifica los permisos de archivos/carpetas (UGO).                 | `chmod -path=/home/archivo.txt -ugo=755`                    |
+| **chown**      | Cambia el propietario de un archivo o carpeta.                    | `chown -path=/home/archivo.txt -user=otrouser`              |
+| **reset**      | Reinicia el estado global del simulador.                          | `execute`                                                   |
+| **journaling** | Muestra el registro de transacciones (EXT3).                      | `journaling -id=341A`                                       |
+| **loss**       | Simula corrupción de datos en la partición.                       | `loss -id=341A -percentage=10`                              |
+| **rep**        | Genera reportes gráficos del disco y archivos.                    | `rep -id=341A -path=/home/reports/tree.jpg -name=tree`      |
 
 #### 6.2 Administración de Discos
 
@@ -501,7 +502,7 @@ Una vez que has creado un disco, particionado el espacio y formateado una partic
 - **Campo de Contraseña:** Ingresa la contraseña del usuario (usuario root por defecto tiene contraseña **123**).
 - **Botón Ingresar:** Ejecuta el login de forma segura.
 
-<img src="Imagenes/LoginGrafico.png" width="650">
+<img src="Imagenes/LoginGrafico.png" width="350">
 
 **Comandos que Requieren Sesión Previa:**
 
@@ -526,7 +527,7 @@ Los siguientes comandos solo funcionan después de haber iniciado sesión:
 
 Una vez logueado, aparecerá un botón **"Cerrar Sesión"** en la barra superior de la interfaz principal. Al hacer clic, se termina la sesión actual y devuelve a la pantalla de inicio.
 
-<img src="Imagenes/CerrarSesion.png" width="650">
+<img src="Imagenes/CerrarSesion.png" width="980">
 
 ---
 
@@ -548,7 +549,7 @@ El Visualizador del Sistema de Archivos es una interfaz gráfica que te permite 
 
 Al acceder al visualizador, aparecerá una pantalla que lista todos los discos creados en tu sistema.
 
-<img src="Imagenes/SeleccionDisco.png" width="650">
+<img src="Imagenes/SeleccionDisco.png" width="450">
 
 **Información mostrada por disco:**
 
@@ -563,7 +564,7 @@ Selecciona cualquier disco haciendo clic sobre él para pasar a la vista de sele
 
 Después de seleccionar un disco, se mostrarán todas sus particiones disponibles.
 
-<img src="Imagenes/SeleccionParticion.png" width="650">
+<img src="Imagenes/SeleccionParticion.png" width="850">
 
 **Información mostrada por partición:**
 
@@ -579,7 +580,7 @@ Selecciona la partición que deseas explorar para ver su estructura de archivos.
 
 Una vez seleccionada una partición, entrarás al explorador de archivos comenzando desde la carpeta raíz `/`.
 
-<img src="Imagenes/RaizExplorador.png" width="650">
+<img src="Imagenes/RaizExplorador.png" width="450">
 
 **Elementos Mostrados:**
 
@@ -595,7 +596,7 @@ Una vez seleccionada una partición, entrarás al explorador de archivos comenza
   - Permisos (formato UGO: Usuario, Grupo, Otros)
   - Fechas de creación, modificación y acceso
 
-<img src="Imagenes/Explorador.png" width="650">
+<img src="Imagenes/Explorador.png" width="850">
 
 **Cómo Navegar:**
 
@@ -607,7 +608,7 @@ Una vez seleccionada una partición, entrarás al explorador de archivos comenza
 
 Al seleccionar un archivo de texto, se abre un panel de visualización mostrando su contenido completo.
 
-<img src="Imagenes/VisualizadorArchivo.png" width="650">
+<img src="Imagenes/VisualizadorArchivo.png" width="950">
 
 **Características:**
 
@@ -615,6 +616,26 @@ Al seleccionar un archivo de texto, se abre un panel de visualización mostrando
 - Información de propiedades y permisos del archivo
 - Botón **"Descargar"** para guardar el archivo en tu computadora
 - Botón **"Volver"** para regresar al explorador
+
+#### 8.5 Visualización de Journaling
+
+**Descripción:**
+
+El Visualizador de Journaling permite consultar el registro de transacciones de una partición formateada con el sistema de archivos EXT3. Esta herramienta es fundamental para entender qué operaciones se han realizado en el sistema, asegurando la integridad de los datos.
+
+**Características:**
+
+- **Tabla Detallada:** Muestra una lista estructurada con todas las operaciones ejecutadas en la partición.
+- **Información por Transacción:**
+  - **Operación:** Tipo de comando ejecutado (ej. `mkdir`, `mkfile`, `remove`).
+  - **Ruta:** Ubicación en el sistema de archivos donde se realizó la operación.
+  - **Contenido/Datos:** Texto o parámetros asociados a la creación del archivo (si aplica).
+  - **Fecha:** Marca de tiempo exacta en que ocurrió la operación.
+- **Lectura Automática:** Los datos se obtienen directamente de los bloques de journaling de la partición EXT3 seleccionada.
+
+Para acceder a este registro, selecciona una partición EXT3 y busca el botón de **"Journaling"** en la interfaz.
+
+<img src="Imagenes/Journaling.png" width="990">
 
 ---
 
