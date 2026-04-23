@@ -1,7 +1,7 @@
 // Configuración de la API del backend C++
 // IMPORTANTE: Cambia esta URL a la dirección donde corre tu servidor C++
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE_URL = 'http://184.72.163.233:8080';  //Cambio para EC2
 
 export interface CommandResponse {
   success: boolean;

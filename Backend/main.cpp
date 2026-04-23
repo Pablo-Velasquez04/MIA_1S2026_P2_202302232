@@ -447,7 +447,7 @@ int main() {
     std::cout << "  GET  /api/health\n";
     std::cout << "  POST /api/execute\n";
     std::cout << "  GET  /api/reports/:path\n";
-
+    
     server.listen("0.0.0.0", 8080);
     return 0;
 }
