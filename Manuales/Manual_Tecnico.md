@@ -234,6 +234,51 @@ else if (command == "mkfs")    return cmdMkfs(params);
 - **CAT:** Algoritmo que rastrea bloque a bloque por medio de Inodos en búsqueda de un match de la ruta y parsea los bytes de vuelta transformándolo en texto puro en el dashboard Frontend.
   - _Parámetros:_ `-file1`, `-fileN` (permite leer multiples paths simulados secuencialmente).
 
+- **REMOVE:** Elimina archivos o carpetas de forma recursiva desde el sistema de archivos EXT2. Valida permisos de escritura antes de proceder con la eliminación física.
+  - _Parámetros:_ `-path` (ruta del archivo o carpeta a eliminar), `-r` (bandera opcional para eliminar de forma recursiva).
+  - _Sintaxis:_ `remove -path=/home/archivo.txt` o `remove -path=/home/folder -r`
+
+- **RENAME:** Renombra un archivo o carpeta dentro del sistema de archivos. Solo requiere cambiar el nombre en el FolderBlock del directorio padre.
+  - _Parámetros:_ `-path` (ruta completa del elemento a renombrar), `-name` (nuevo nombre del elemento).
+  - _Sintaxis:_ `rename -path=/home/viejo.txt -name=nuevo.txt`
+
+- **COPY:** Duplica archivos o carpetas recursivamente, creando nuevos inodos y bloques con el contenido del origen. Copia permisos básicos pero asigna nuevo propietario al usuario actual.
+  - _Parámetros:_ `-path` (ruta origen), `-destino` (ruta destino o carpeta destino), `-r` (copia recursiva de carpetas).
+  - _Sintaxis:_ `copy -path=/home/original.txt -destino=/home/backup.txt` o `copy -path=/dir1 -destino=/dir2 -r`
+
+- **MOVE:** Traslada archivos o carpetas de un ubicación a otra dentro del mismo sistema de archivos. Valida contra movimientos cíclicos (no permite mover una carpeta dentro de sí misma).
+  - _Parámetros:_ `-path` (ruta origen), `-destino` (ruta o directorio destino).
+  - _Sintaxis:_ `move -path=/home/archivo.txt -destino=/documentos/`
+
+- **FIND:** Busca archivos recursivamente por patrón de nombre usando expresiones regulares (regex). Útil para localizar archivos específicos dentro de la jerarquía.
+  - _Parámetros:_ `-path` (ruta base de búsqueda), `-name` (patrón regex de búsqueda).
+  - _Sintaxis:_ `find -path=/ -name=".*\.txt"` (busca todo archivo que contenga .txt)
+
+- **CHMOD:** Modifica los permisos de archivos o carpetas en formato UGO (Usuario, Grupo, Otros). Requiere ser propietario o root.
+  - _Parámetros:_ `-path` (ruta del archivo/carpeta), `-ugo` (3 caracteres [0-7] para permisos UGO), `-r` (aplica recursivamente).
+  - _Sintaxis:_ `chmod -path=/home/archivo.txt -ugo=755` o `chmod -path=/dir -ugo=644 -r`
+
+- **CHOWN:** Cambia el propietario (UID) de un archivo o carpeta. Solo root o el propietario actual pueden ejecutar este comando.
+  - _Parámetros:_ `-path` (ruta del archivo/carpeta), `-user` (nombre de usuario nuevo propietario), `-r` (aplica recursivamente).
+  - _Sintaxis:_ `chown -path=/home/archivo.txt -user=otrouser` o `chown -path=/dir -user=admin -r`
+
+### Comandos de Sistema de Archivos Avanzados
+
+- **RESET:** Reinicia el estado global del simulador, limpiando todas las monturas activas y sesiones de usuario. Útil para resetear el estado ante errores o antes de ejecutar nuevos scripts.
+  - _Parámetros:_ Ninguno (acepta `-execute` como trigger).
+  - _Sintaxis:_ `execute` o simplemente ejecuta automáticamente el reinicio.
+  - _Efecto:_ Cierra todas las particiones montadas y termina la sesión del usuario.
+
+- **JOURNALING:** Muestra el registro de transacciones (journal) de una partición EXT3 formateada. Registra todas las operaciones realizadas sobre archivos y carpetas.
+  - _Parámetros:_ `-id` (identificador de la partición montada).
+  - _Sintaxis:_ `journaling -id=disco1`
+  - _Salida:_ Array JSON con los registros de journal incluyendo operación, ruta, contenido y timestamp.
+
+- **LOSS:** Simula corrupción de datos destruyendo aleatoriamente bloques de datos de la partición (excepto el superbloque e inodos protegidos). Útil para demostrar recuperación y resiliencia del sistema.
+  - _Parámetros:_ `-id` (identificador de la partición montada), `-percentage` (porcentaje de corrupción, 1-100, opcional).
+  - _Sintaxis:_ `loss -id=disco1 -percentage=10` (corrompe el 10% de bloques disponibles)
+  - _Efecto:_ Destruye selectivamente bloques para simular fallos de hardware o corrupción del sistema de archivos.
+
 ### Comandos de Permisos y Usuarios Local (Requieren super usuario "root")
 
 - **MKGRP / RMGRP:** Mutan agregando en las últimas líneas del FileBlock de inodo correspondiente a `/users.txt`, un formato de datos para crear o inhabilitar (colocar contador 0) a grupos y usuarios.

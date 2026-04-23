@@ -175,6 +175,16 @@ Los comandos no distinguen mayúsculas/minúsculas. Parámetros en cualquier ord
 | **mkfile** | Crea un archivo de texto dentro del sistema simulado. | `mkfile -path=/home/user/docs/a.txt -r -size=15` |
 | **mkdir** | Crea un directorio jerárquico. | `mkdir -path=/home/user/docs/usac -p` |
 | **cat** | Muestra en consola el contenido de uno o más archivos. | `cat -file1=/home/user/docs/a.txt` |
+| **remove** | Elimina archivos o carpetas de forma recursiva. | `remove -path=/home/archivo.txt` |
+| **rename** | Renombra un archivo o carpeta. | `rename -path=/home/viejo.txt -name=nuevo.txt` |
+| **copy** | Duplica archivos o carpetas recursivamente. | `copy -path=/home/original.txt -destino=/home/backup.txt` |
+| **move** | Traslada archivos o carpetas a otra ubicación. | `move -path=/home/archivo.txt -destino=/documentos/` |
+| **find** | Busca archivos por patrón de nombre (regex). | `find -path=/ -name=".*\.txt"` |
+| **chmod** | Modifica los permisos de archivos/carpetas (UGO). | `chmod -path=/home/archivo.txt -ugo=755` |
+| **chown** | Cambia el propietario de un archivo o carpeta. | `chown -path=/home/archivo.txt -user=otrouser` |
+| **reset** | Reinicia el estado global del simulador. | `execute` |
+| **journaling** | Muestra el registro de transacciones (EXT3). | `journaling -id=341A` |
+| **loss** | Simula corrupción de datos en la partición. | `loss -id=341A -percentage=10` |
 | **rep** | Genera reportes gráficos del disco y archivos. | `rep -id=341A -path=/home/reports/tree.jpg -name=tree` |
 
 #### 6.2 Administración de Discos
@@ -302,7 +312,150 @@ Ejemplo:
 mkdir -p -path="/home/user/docs/usac"
 ```
 
-#### 6.6 Reportes (Comando REP) – Muy importante para calificación
+**remove** – Eliminar archivos o carpetas
+
+```
+remove -path=<ruta> [-r]
+```
+
+- `-r`: Elimina de forma recursiva carpetas y su contenido.
+
+Ejemplo:
+
+```
+remove -path=/home/archivo.txt
+remove -path=/home/folder -r
+```
+
+**rename** – Renombrar archivos o carpetas
+
+```
+rename -path=<ruta_actual> -name=<nuevo_nombre>
+```
+
+Ejemplo:
+
+```
+rename -path=/home/viejo.txt -name=nuevo.txt
+```
+
+**copy** – Copiar archivos o carpetas
+
+```
+copy -path=<ruta_origen> -destino=<ruta_destino> [-r]
+```
+
+- `-r`: Copia carpetas de forma recursiva con todo su contenido.
+
+Ejemplos:
+
+```
+copy -path=/home/original.txt -destino=/home/backup.txt
+copy -path=/dir1 -destino=/dir2 -r
+```
+
+**move** – Mover o trasladar archivos
+
+```
+move -path=<ruta_origen> -destino=<ruta_destino>
+```
+
+Ejemplo:
+
+```
+move -path=/home/archivo.txt -destino=/documentos/
+```
+
+**find** – Buscar archivos por patrón
+
+```
+find -path=<ruta_base> -name=<patrón_regex>
+```
+
+Busca archivos usando expresiones regulares. Ejemplos:
+
+```
+find -path=/ -name=".*\.txt"
+find -path=/documentos -name="^archivo.*\.doc"
+```
+
+**chmod** – Cambiar permisos
+
+```
+chmod -path=<ruta> -ugo=<permisos> [-r]
+```
+
+- Permisos se especifican en formato octal UGO (3 dígitos): Usuario, Grupo, Otros.
+- `-r`: Aplica recursivamente a carpetas y su contenido.
+
+Ejemplo:
+
+```
+chmod -path=/home/archivo.txt -ugo=755
+chmod -path=/dir -ugo=644 -r
+```
+
+**chown** – Cambiar propietario
+
+```
+chown -path=<ruta> -user=<nuevo_usuario> [-r]
+```
+
+- Solo root puede cambiar propietarios.
+- `-r`: Aplica recursivamente.
+
+Ejemplo:
+
+```
+chown -path=/home/archivo.txt -user=otrouser
+chown -path=/dir -user=admin -r
+```
+
+#### 6.6 Comandos Avanzados del Sistema de Archivos
+
+**reset** – Reiniciar el estado global
+
+```
+execute
+```
+
+Reinicia completamente el simulador, limpiando todas las monturas y sesiones activas.
+
+Ejemplo:
+
+```
+execute
+```
+
+**journaling** – Ver registro de transacciones
+
+```
+journaling -id=<ID>
+```
+
+Muestra el historial de todas las operaciones realizadas en la partición (requiere EXT3).
+
+Ejemplo:
+
+```
+journaling -id=341A
+```
+
+**loss** – Simular corrupción de datos
+
+```
+loss -id=<ID> [-percentage=<número>]
+```
+
+Destruye aleatoriamente bloques de datos para simular fallos.
+
+Ejemplo:
+
+```
+loss -id=341A -percentage=10
+```
+
+#### 6.7 Reportes (Comando REP) – Muy importante para calificación
 
 ```
 rep -id=<ID> -path=<ruta salida> -name=<tipo> [-ruta=<ruta interna>]
@@ -335,7 +488,137 @@ Los reportes se guardan automáticamente en la ruta indicada y aparecen en la se
 
 ---
 
-### 7. Gestión de Particiones Montadas y Reportes
+### 7. Interfaz de Iniciar Sesión
+
+**Descripción:**
+
+Una vez que has creado un disco, particionado el espacio y formateado una partición con EXT2, podrás acceder a una interfaz gráfica dedicada para iniciar sesión. Esta interfaz reemplaza el comando `login` en línea de comandos, proporcionando una experiencia más intuitiva y amigable.
+
+**Funcionalidad:**
+
+- **Selector de Partición:** Despliega todas las particiones montadas disponibles para que selecciones la que deseas utilizar.
+- **Campo de Usuario:** Ingresa el nombre del usuario (por defecto: **root**).
+- **Campo de Contraseña:** Ingresa la contraseña del usuario (usuario root por defecto tiene contraseña **123**).
+- **Botón Ingresar:** Ejecuta el login de forma segura.
+
+<img src="Imagenes/LoginGrafico.png" width="650">
+
+**Comandos que Requieren Sesión Previa:**
+
+Los siguientes comandos solo funcionan después de haber iniciado sesión:
+
+- **mkgrp** – Crear grupos de usuarios
+- **rmgrp** – Eliminar grupos
+- **mkusr** – Crear usuarios nuevos
+- **rmusr** – Eliminar usuarios
+- **mkfile** – Crear archivos
+- **mkdir** – Crear carpetas
+- **cat** – Visualizar contenido de archivos
+- **chmod** – Cambiar permisos
+- **chown** – Cambiar propietario
+- **remove** – Eliminar archivos/carpetas
+- **rename** – Renombrar elementos
+- **copy** – Copiar archivos/carpetas
+- **move** – Mover archivos/carpetas
+- **find** – Buscar archivos
+
+**Botón de Cerrar Sesión:**
+
+Una vez logueado, aparecerá un botón **"Cerrar Sesión"** en la barra superior de la interfaz principal. Al hacer clic, se termina la sesión actual y devuelve a la pantalla de inicio.
+
+<img src="Imagenes/CerrarSesion.png" width="650">
+
+---
+
+### 8. Visualizador del Sistema de Archivos
+
+**Descripción:**
+
+El Visualizador del Sistema de Archivos es una interfaz gráfica que te permite explorar la estructura del disco de manera visual, similar a un explorador de archivos tradicional. Una vez logueado, podrás navegar por todos los discos, particiones, carpetas y archivos del sistema simulado.
+
+**Características:**
+
+- Navegación visual e intuitiva
+- Visualización jerárquica de directorios
+- Visualización de contenido de archivos
+- Información detallada de permisos y propiedades
+- Modo solo lectura (no permite modificar desde la interfaz, solo mediante comandos)
+
+#### 8.1 Selección de Disco
+
+Al acceder al visualizador, aparecerá una pantalla que lista todos los discos creados en tu sistema.
+
+<img src="Imagenes/SeleccionDisco.png" width="650">
+
+**Información mostrada por disco:**
+
+- **Nombre/Identificador:** Nombre del archivo .mia
+- **Capacidad Total:** Tamaño del disco en MB/GB
+- **Tipo de Ajuste (Fit):** BF (Best Fit), FF (First Fit) o WF (Worst Fit)
+- **Particiones Montadas:** Número de particiones activas
+
+Selecciona cualquier disco haciendo clic sobre él para pasar a la vista de selección de particiones.
+
+#### 8.2 Selección de Partición
+
+Después de seleccionar un disco, se mostrarán todas sus particiones disponibles.
+
+<img src="Imagenes/SeleccionParticion.png" width="650">
+
+**Información mostrada por partición:**
+
+- **Nombre de Partición:** Identificador asignado (ej. Part1, Part2)
+- **Tamaño:** Capacidad de la partición
+- **Tipo:** Primaria (P), Extendida (E) o Lógica (L)
+- **Tipo de Ajuste (Fit):** Algoritmo de asignación utilizado
+- **Estado:** Montada ✅ / No montada ❌
+
+Selecciona la partición que deseas explorar para ver su estructura de archivos.
+
+#### 8.3 Navegación del Sistema de Archivos
+
+Una vez seleccionada una partición, entrarás al explorador de archivos comenzando desde la carpeta raíz `/`.
+
+<img src="Imagenes/RaizExplorador.png" width="650">
+
+**Elementos Mostrados:**
+
+- **Carpetas:** Puedes hacer clic en cualquier carpeta para navegar hacia su interior.
+- **Archivos:** Se muestran con su ícono correspondiente (documento, imagen, etc).
+- **Ruta Actual:** Barra superior mostrando dónde te encuentras (ej. / > home > user > docs).
+- **Propiedades:** Cada elemento muestra:
+  - Nombre
+  - Tipo (Archivo o Carpeta)
+  - Tamaño en bytes
+  - Propietario (UID)
+  - Grupo (GID)
+  - Permisos (formato UGO: Usuario, Grupo, Otros)
+  - Fechas de creación, modificación y acceso
+
+<img src="Imagenes/Explorador.png" width="650">
+
+**Cómo Navegar:**
+
+1. Haz doble clic en una carpeta para entrar en ella.
+2. Usa el botón **"Atrás"** o la ruta superior para subir de nivel.
+3. Haz clic en un archivo para seleccionarlo y ver sus detalles.
+
+#### 8.4 Visualización de Archivos
+
+Al seleccionar un archivo de texto, se abre un panel de visualización mostrando su contenido completo.
+
+<img src="Imagenes/VisualizadorArchivo.png" width="650">
+
+**Características:**
+
+- Muestra el contenido del archivo en formato texto
+- Información de propiedades y permisos del archivo
+- Botón **"Descargar"** para guardar el archivo en tu computadora
+- Botón **"Volver"** para regresar al explorador
+
+---
+
+### 9. Gestión de Particiones Montadas y Reportes
 
 - Después de `mount` y `mkfs`, ve a la pestaña **Particiones** para verificar.
 - Cada reporte generado aparece en la sección inferior con vista previa y botón de descarga.
@@ -343,7 +626,7 @@ Los reportes se guardan automáticamente en la ruta indicada y aparecen en la se
 
 ---
 
-### 8. Consejos y Buenas Prácticas
+### 10. Consejos y Buenas Prácticas
 
 - Siempre inicia sesión como **root** al principio.
 - Usa `-p` y `-r` para evitar errores de carpetas inexistentes.
@@ -354,7 +637,7 @@ Los reportes se guardan automáticamente en la ruta indicada y aparecen en la se
 
 ---
 
-### 9. Solución de Problemas Comunes
+### 11. Solución de Problemas Comunes
 
 | Problema                 | Causa posible       | Solución                              |
 | ------------------------ | ------------------- | ------------------------------------- |
@@ -366,7 +649,7 @@ Los reportes se guardan automáticamente en la ruta indicada y aparecen en la se
 
 ---
 
-### 10. Referencias y Ayuda Adicional
+### 12. Referencias y Ayuda Adicional
 
 - Pestaña **Referencia** dentro de la aplicación (lista rápida).
 - Enunciado oficial del proyecto (PDF).
